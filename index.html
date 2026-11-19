@@ -3,362 +3,99 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#080d19">
-  <title>AR Card Scanner</title>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1020">
+  <title>Quét thẻ</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      min-height: 100vh;
-      background:
-        radial-gradient(ellipse at 50% 0%, #182844 0%, transparent 55%),
-        #080d19;
-      color: #f4f7ff;
-      font-family: Arial, Helvetica, sans-serif;
-      padding: 24px 16px 40px;
-    }
-
-    .container {
-      width: 100%;
-      max-width: 560px;
-      margin: 0 auto;
-    }
-
-    .intro {
-      text-align: center;
-      margin: 12px 0 24px;
-    }
-
-    .intro h1 {
-      font-size: 23px;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-    }
-
-    .intro p {
-      color: #9eacc4;
-      font-size: 14px;
-      margin-top: 8px;
-    }
-
-    .scanner {
-      position: relative;
-      overflow: hidden;
-      width: 100%;
-      aspect-ratio: 1 / 1;
-      border-radius: 24px;
-      background: #111b2b;
-      border: 1px solid #30415d;
-      box-shadow: 0 18px 60px #0008;
-    }
-
-    #camera {
-      display: block;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transform: none;
-    }
-
-    .scanner::after {
-      content: "";
-      position: absolute;
-      inset: 14px;
-      border: 1px solid #ffffff45;
-      border-radius: 16px;
-      pointer-events: none;
-    }
-
-    .scan-corners {
-      position: absolute;
-      inset: 14px;
-      pointer-events: none;
-      z-index: 2;
-      background:
-        linear-gradient(#75e4ff, #75e4ff) left top / 28px 3px no-repeat,
-        linear-gradient(#75e4ff, #75e4ff) left top / 3px 28px no-repeat,
-        linear-gradient(#75e4ff, #75e4ff) right top / 28px 3px no-repeat,
-        linear-gradient(#75e4ff, #75e4ff) right top / 3px 28px no-repeat,
-        linear-gradient(#75e4ff, #75e4ff) left bottom / 28px 3px no-repeat,
-        linear-gradient(#75e4ff, #75e4ff) left bottom / 3px 28px no-repeat,
-        linear-gradient(#75e4ff, #75e4ff) right bottom / 28px 3px no-repeat,
-        linear-gradient(#75e4ff, #75e4ff) right bottom / 3px 28px no-repeat;
-    }
-
-    .scan-line {
-      position: absolute;
-      z-index: 2;
-      left: 8%;
-      right: 8%;
-      top: 10%;
-      height: 2px;
-      background: #69e4ff;
-      box-shadow: 0 0 12px 3px #32cfff88;
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .scanner.scanning .scan-line {
-      opacity: 1;
-      animation: scan 2.5s ease-in-out infinite alternate;
-    }
-
-    @keyframes scan {
-      from { top: 10%; }
-      to { top: 90%; }
-    }
-
-    .camera-message {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 12px;
-      padding: 24px;
-      text-align: center;
-      color: #c5d1e5;
-      background: #101a2a;
-      z-index: 3;
-    }
-
-    .camera-message .symbol {
-      font-size: 38px;
-    }
-
-    .camera-message p {
-      font-size: 14px;
-      line-height: 1.5;
-      color: #aab8ce;
-    }
-
-    .camera-message.hidden {
-      display: none;
-    }
-
-    .status {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 18px 2px;
-      padding: 14px 16px;
-      border: 1px solid #263750;
-      border-radius: 14px;
-      background: #111c2d;
-      color: #bdc9dc;
-      font-size: 13px;
-      line-height: 1.5;
-    }
-
-    .status-dot {
-      width: 9px;
-      height: 9px;
-      flex: 0 0 9px;
-      border-radius: 50%;
-      background: #e6b65c;
-      box-shadow: 0 0 10px #e6b65c88;
-    }
-
-    .status-dot.active {
-      background: #4fe0a0;
-      box-shadow: 0 0 10px #4fe0a088;
-    }
-
-    .status-dot.error {
-      background: #ff687b;
-      box-shadow: 0 0 10px #ff687b88;
-    }
-
-    .actions {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    button {
-      border: 0;
-      border-radius: 12px;
-      padding: 13px 18px;
-      color: white;
-      background: #243650;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    button:active {
-      transform: scale(.98);
-    }
-
-    button.primary {
-      background: linear-gradient(135deg, #3e9ee8, #3974e8);
-    }
-
-    button:disabled {
-      opacity: .45;
-      cursor: not-allowed;
-    }
-
-    #retryButton {
-      display: none;
-      flex: 1;
-    }
-
-    #stopButton {
-      flex: 1;
-    }
-
-    .result {
-      display: none;
-      overflow: hidden;
-      border: 1px solid #30415d;
-      border-radius: 20px;
-      background: #111c2d;
-      margin-top: 20px;
-    }
-
-    .result.show {
-      display: block;
-    }
-
-    .result-heading {
-      padding: 17px 18px 12px;
-    }
-
-    .result-heading small {
-      color: #69dca9;
-      font-size: 11px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
-
-    .result-heading h2 {
-      margin-top: 6px;
-      font-size: 19px;
-    }
-
-    #resultVideo {
-      display: block;
-      width: 100%;
-      max-height: 420px;
-      background: #000;
-    }
-
-    .result-note {
-      padding: 12px 18px 16px;
-      color: #9eacc4;
-      font-size: 12px;
-      line-height: 1.5;
-    }
-
-    .footer {
-      margin-top: 24px;
-      text-align: center;
-      color: #64748b;
-      font-size: 11px;
-    }
-
-    @media (max-width: 420px) {
-      body {
-        padding: 14px 12px 30px;
-      }
-
-      .intro {
-        margin-top: 8px;
-      }
-
-      .intro h1 {
-        font-size: 21px;
-      }
-
-      .scanner {
-        border-radius: 18px;
-      }
-    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{min-height:100vh;background:radial-gradient(ellipse at 50% -10%,#243b61 0%,#0b1020 55%);color:#f5f7ff;font-family:Arial,sans-serif;padding:22px 15px 40px}
+    .wrap{max-width:560px;margin:auto}
+    header{text-align:center;padding:12px 0 23px}
+    header h1{font-size:24px;letter-spacing:-.5px}
+    header p{font-size:14px;color:#aab8d0;margin-top:9px}
+    .scanner{position:relative;width:100%;aspect-ratio:1/1;background:#111c30;border:1px solid #354967;border-radius:25px;overflow:hidden;box-shadow:0 20px 60px #0006}
+    #camera{width:100%;height:100%;display:block;object-fit:cover}
+    .corners{position:absolute;inset:15px;z-index:2;pointer-events:none;background:linear-gradient(#6de3ff,#6de3ff) left top/30px 3px no-repeat,linear-gradient(#6de3ff,#6de3ff) left top/3px 30px no-repeat,linear-gradient(#6de3ff,#6de3ff) right top/30px 3px no-repeat,linear-gradient(#6de3ff,#6de3ff) right top/3px 30px no-repeat,linear-gradient(#6de3ff,#6de3ff) left bottom/30px 3px no-repeat,linear-gradient(#6de3ff,#6de3ff) left bottom/3px 30px no-repeat,linear-gradient(#6de3ff,#6de3ff) right bottom/30px 3px no-repeat,linear-gradient(#6de3ff,#6de3ff) right bottom/3px 30px no-repeat}
+    .scanline{position:absolute;z-index:2;left:8%;right:8%;top:10%;height:2px;background:#65e3ff;box-shadow:0 0 15px #65e3ff;opacity:0}
+    .scanner.active .scanline{opacity:1;animation:scan 2.8s ease-in-out infinite alternate}
+    @keyframes scan{to{top:90%}}
+    .message{position:absolute;inset:0;z-index:3;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;text-align:center;padding:25px;background:#111c30;color:#cbd6e8}
+    .message .symbol{font-size:38px}
+    .message p{font-size:14px;line-height:1.6}
+    .message.hide{display:none}
+    .status{display:flex;align-items:center;gap:11px;margin:17px 1px;padding:14px 15px;border:1px solid #293c59;border-radius:14px;background:#111b2c;color:#c4d0e2;font-size:13px;line-height:1.5}
+    .dot{width:9px;height:9px;flex:none;border-radius:50%;background:#e7b65d}
+    .dot.ok{background:#4ee0a0;box-shadow:0 0 10px #4ee0a080}
+    .dot.err{background:#ff687b}
+    .buttons{display:flex;gap:10px}
+    button{border:0;border-radius:12px;padding:13px 17px;font-size:14px;font-weight:700;color:#fff;background:#273954;cursor:pointer}
+    button:active{transform:scale(.98)}
+    #retry{display:none;flex:1;background:#367ee7}
+    #stop{flex:1}
+    .result{display:none;margin-top:20px;overflow:hidden;border:1px solid #354967;border-radius:20px;background:#111b2c}
+    .result.show{display:block}
+    .result-head{padding:17px 18px 13px}
+    .result-head small{font-size:11px;color:#55dba2;text-transform:uppercase;letter-spacing:1px}
+    .result-head h2{font-size:19px;margin-top:7px}
+    #video{width:100%;display:block;background:#000;max-height:420px}
+    .note{padding:13px 18px 16px;color:#9eacc4;font-size:12px;line-height:1.5}
+    footer{text-align:center;color:#687993;font-size:11px;margin-top:24px}
+    @media(max-width:420px){body{padding:13px 11px 30px}.scanner{border-radius:19px}header h1{font-size:21px}}
   </style>
 </head>
-
 <body>
-  <main class="container">
-    <header class="intro">
+  <main class="wrap">
+    <header>
       <h1>Quét thẻ để xem video</h1>
       <p>Đưa thẻ vào giữa khung hình để nhận diện</p>
     </header>
 
     <section class="scanner" id="scanner">
       <video id="camera" autoplay muted playsinline></video>
-
-      <div class="scan-corners"></div>
-      <div class="scan-line"></div>
-
-      <div class="camera-message" id="cameraMessage">
+      <div class="corners"></div>
+      <div class="scanline"></div>
+      <div class="message" id="cameraMessage">
         <div class="symbol">📷</div>
-        <p id="cameraMessageText">Đang kết nối camera...</p>
+        <p id="messageText">Đang kết nối camera...</p>
       </div>
     </section>
 
     <div class="status">
-      <span class="status-dot" id="statusDot"></span>
-      <span id="statusText">Đang yêu cầu quyền truy cập camera...</span>
+      <span class="dot" id="dot"></span>
+      <span id="status">Đang yêu cầu quyền camera...</span>
     </div>
 
-    <div class="actions">
-      <button class="primary" id="retryButton" type="button">
-        Thử mở camera lại
-      </button>
-      <button id="stopButton" type="button">
-        Tắt camera
-      </button>
+    <div class="buttons">
+      <button id="retry">Thử mở camera lại</button>
+      <button id="stop">Tắt camera</button>
     </div>
 
     <section class="result" id="result">
-      <div class="result-heading">
+      <div class="result-head">
         <small>Đã nhận diện thẻ</small>
-        <h2 id="resultName">Thẻ của bạn</h2>
+        <h2 id="cardName">Tên thẻ</h2>
       </div>
-
-      <video id="resultVideo" controls playsinline></video>
-
-      <div class="result-note">
-        Nếu video không tự phát, hãy nhấn nút phát trên video.
-      </div>
+      <video id="video" controls playsinline></video>
+      <div class="note">Nếu video không tự phát, hãy nhấn nút phát trên video.</div>
     </section>
 
-    <div class="footer">
-      Đặt thẻ đủ sáng và giữ thẻ trong khung hình
-    </div>
+    <footer>Giữ thẻ trong khung hình, đủ sáng và tránh rung tay</footer>
   </main>
 
-  <!-- Khởi tạo OpenCV trước khi tải thư viện -->
   <script>
     var Module = {
-      onRuntimeInitialized: function () {
+      onRuntimeInitialized: function() {
         window.__opencvReady = true;
       }
     };
     window.Module = Module;
   </script>
-
   <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
 
   <script type="module">
-    import { initializeApp } from
-      "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {getFirestore,collection,getDocs} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    import {
-      getFirestore,
-      collection,
-      getDocs
-    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-    // Firebase config của dự án
     const firebaseConfig = {
       apiKey: "AIzaSyDFTvux73x5oAl273PN_0_wwzA1OVvh34c",
       authDomain: "ar-card-video.firebaseapp.com",
@@ -368,484 +105,379 @@
       appId: "1:725938606795:web:516149f4210f26344bc14e"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
+    const db = getFirestore(initializeApp(firebaseConfig));
     const camera = document.getElementById("camera");
     const scanner = document.getElementById("scanner");
-    const cameraMessage = document.getElementById("cameraMessage");
-    const cameraMessageText = document.getElementById("cameraMessageText");
-    const statusText = document.getElementById("statusText");
-    const statusDot = document.getElementById("statusDot");
-    const retryButton = document.getElementById("retryButton");
-    const stopButton = document.getElementById("stopButton");
+    const message = document.getElementById("cameraMessage");
+    const messageText = document.getElementById("messageText");
+    const statusText = document.getElementById("status");
+    const dot = document.getElementById("dot");
+    const retry = document.getElementById("retry");
+    const stop = document.getElementById("stop");
     const result = document.getElementById("result");
-    const resultName = document.getElementById("resultName");
-    const resultVideo = document.getElementById("resultVideo");
+    const cardName = document.getElementById("cardName");
+    const video = document.getElementById("video");
 
     let stream = null;
     let cv = null;
     let orb = null;
     let matcher = null;
-    let referenceCards = [];
-    let scanTimer = null;
-    let scanning = false;
-    let recognitionReady = false;
-    let recognizing = false;
-    let lastMatchedId = null;
-    let lastMatchedTime = 0;
+    let cards = [];
+    let ready = false;
+    let busy = false;
+    let loopId = null;
+    let lastScan = 0;
+    let lastCardId = "";
+    let lastCardTime = 0;
 
-    function setStatus(message, type = "normal") {
-      statusText.textContent = message;
-      statusDot.className = "status-dot";
+    function status(text,type="normal"){
+      statusText.textContent=text;
+      dot.className="dot";
+      if(type==="ok")dot.classList.add("ok");
+      if(type==="err")dot.classList.add("err");
+    }
 
-      if (type === "active") {
-        statusDot.classList.add("active");
-      } else if (type === "error") {
-        statusDot.classList.add("error");
+    function cameraError(text){
+      message.classList.remove("hide");
+      messageText.textContent=text;
+      retry.style.display="block";
+      scanner.classList.remove("active");
+      status(text,"err");
+    }
+
+    function stopCamera(showMessage=true){
+      if(stream){
+        stream.getTracks().forEach(t=>t.stop());
+        stream=null;
+      }
+      camera.srcObject=null;
+      if(loopId)cancelAnimationFrame(loopId);
+      loopId=null;
+      scanner.classList.remove("active");
+      if(showMessage){
+        message.classList.remove("hide");
+        messageText.textContent="Camera đã tắt.";
+        status("Camera đã tắt.");
       }
     }
 
-    function showCameraError(message) {
-      cameraMessage.classList.remove("hidden");
-      cameraMessageText.textContent = message;
-      retryButton.style.display = "block";
-      scanner.classList.remove("scanning");
-      setStatus(message, "error");
-    }
+    async function startCamera(){
+      retry.style.display="none";
+      message.classList.remove("hide");
+      messageText.textContent="Đang xin quyền truy cập camera...";
+      status("Đang yêu cầu quyền truy cập camera...");
+      stopCamera(false);
 
-    // Mở camera sau trước; nếu trình duyệt không hỗ trợ exact,
-    // thử lại với chế độ ưu tiên camera sau.
-    async function startCamera() {
-      retryButton.style.display = "none";
-      cameraMessage.classList.remove("hidden");
-      cameraMessageText.textContent = "Đang xin quyền truy cập camera...";
-      setStatus("Đang yêu cầu quyền truy cập camera...");
-
-      if (!navigator.mediaDevices ||
-          !navigator.mediaDevices.getUserMedia) {
-        showCameraError(
-          "Trình duyệt không hỗ trợ camera. Hãy mở website bằng HTTPS trên Chrome hoặc Safari."
-        );
+      if(!navigator.mediaDevices?.getUserMedia){
+        cameraError("Camera cần HTTPS và trình duyệt hỗ trợ. Hãy mở website bằng Chrome hoặc Safari.");
         return;
       }
 
-      stopCamera(false);
-
-      try {
-        try {
-          // Ưu tiên bắt buộc camera sau trên điện thoại
-          stream = await navigator.mediaDevices.getUserMedia({
-            audio: false,
-            video: {
-              facingMode: { exact: "environment" },
-              width: { ideal: 1280 },
-              height: { ideal: 1280 }
+      try{
+        try{
+          stream=await navigator.mediaDevices.getUserMedia({
+            audio:false,
+            video:{
+              facingMode:{exact:"environment"},
+              width:{ideal:1280},
+              height:{ideal:1280}
             }
           });
-        } catch (rearCameraError) {
-          // Một số máy không nhận exact, thử ưu tiên camera sau
-          stream = await navigator.mediaDevices.getUserMedia({
-            audio: false,
-            video: {
-              facingMode: { ideal: "environment" },
-              width: { ideal: 1280 },
-              height: { ideal: 1280 }
+        }catch(e){
+          stream=await navigator.mediaDevices.getUserMedia({
+            audio:false,
+            video:{
+              facingMode:{ideal:"environment"},
+              width:{ideal:1280},
+              height:{ideal:1280}
             }
           });
         }
 
-        camera.srcObject = stream;
+        camera.srcObject=stream;
         await camera.play();
-
-        cameraMessage.classList.add("hidden");
-        scanner.classList.add("scanning");
-
-        setStatus(
-          recognitionReady
-            ? "Camera đã bật. Hãy đưa thẻ vào khung hình."
-            : "Camera đã bật. Đang tải bộ nhận diện thẻ...",
-          "active"
-        );
-
-        startScanLoop();
-
-      } catch (error) {
-        console.error("Camera error:", error);
-
-        let message = "Không mở được camera.";
-
-        if (error.name === "NotAllowedError" ||
-            error.name === "PermissionDeniedError") {
-          message = "Bạn chưa cấp quyền camera. Hãy cho phép camera trong trình duyệt rồi thử lại.";
-        } else if (error.name === "NotFoundError") {
-          message = "Không tìm thấy camera trên thiết bị này.";
-        } else if (error.name === "NotReadableError") {
-          message = "Camera đang được ứng dụng khác sử dụng. Hãy đóng ứng dụng đó rồi thử lại.";
-        }
-
-        showCameraError(message);
+        message.classList.add("hide");
+        scanner.classList.add("active");
+        status(ready?"Camera đã bật. Hãy đưa thẻ vào khung hình.":"Camera đã bật. Đang tải nhận diện...", "ok");
+        startLoop();
+      }catch(e){
+        console.error(e);
+        let msg="Không mở được camera.";
+        if(e.name==="NotAllowedError")msg="Bạn chưa cấp quyền camera. Hãy cho phép camera trong cài đặt trình duyệt.";
+        if(e.name==="NotFoundError")msg="Không tìm thấy camera trên thiết bị.";
+        if(e.name==="NotReadableError")msg="Camera đang được ứng dụng khác sử dụng.";
+        cameraError(msg);
       }
     }
 
-    function stopCamera(updateStatus = true) {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        stream = null;
+    retry.addEventListener("click",startCamera);
+    stop.addEventListener("click",()=>stopCamera());
+
+    async function waitForOpenCV(){
+      const started=Date.now();
+      while(Date.now()-started<60000){
+        let candidate=window.cv;
+        if(candidate && typeof candidate.then==="function"){
+          candidate=await candidate;
+        }
+        if(candidate && candidate.Mat && candidate.ORB){
+          cv=candidate;
+          return;
+        }
+        await new Promise(r=>setTimeout(r,250));
       }
-
-      camera.srcObject = null;
-      scanning = false;
-
-      if (scanTimer) {
-        cancelAnimationFrame(scanTimer);
-        scanTimer = null;
-      }
-
-      scanner.classList.remove("scanning");
-
-      if (updateStatus) {
-        cameraMessage.classList.remove("hidden");
-        cameraMessageText.textContent = "Camera đã tắt.";
-        setStatus("Camera đã tắt.");
-      }
+      throw new Error("OpenCV không tải được.");
     }
 
-    retryButton.addEventListener("click", startCamera);
-
-    stopButton.addEventListener("click", () => {
-      stopCamera(true);
-    });
-
-    // Chờ OpenCV tải xong, không để việc này chặn camera.
-    async function waitForOpenCV() {
-      const start = Date.now();
-
-      while (Date.now() - start < 60000) {
-        let candidate = window.cv;
-
-        if (candidate && typeof candidate.then === "function") {
-          try {
-            candidate = await candidate;
-          } catch (error) {
-            console.error(error);
-          }
-        }
-
-        if (candidate && candidate.Mat && candidate.ORB) {
-          cv = candidate;
-          return cv;
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 300));
-      }
-
-      throw new Error("OpenCV tải quá thời gian.");
-    }
-
-    function loadImage(url) {
-      return new Promise((resolve, reject) => {
-        const image = new Image();
-        image.crossOrigin = "anonymous";
-
-        image.onload = () => resolve(image);
-        image.onerror = () => reject(
-          new Error("Không tải được ảnh thẻ: " + url)
-        );
-
-        image.src = url;
+    function loadImage(url){
+      return new Promise((resolve,reject)=>{
+        const img=new Image();
+        img.crossOrigin="anonymous";
+        img.onload=()=>resolve(img);
+        img.onerror=()=>reject(new Error("Không tải được ảnh mẫu: "+url));
+        img.src=url;
       });
     }
 
-    async function createCardDescriptor(card) {
-      const image = await loadImage(card.imageUrl);
+    async function makeReference(card){
+      const img=await loadImage(card.imageUrl);
+      const source=cv.imread(img);
+      const gray=new cv.Mat();
+      const normalized=new cv.Mat();
+      const keypoints=new cv.KeyPointVector();
+      const descriptors=new cv.Mat();
+      const mask=new cv.Mat();
 
-      const source = cv.imread(image);
-      const gray = new cv.Mat();
-      const keypoints = new cv.KeyPointVector();
-      const descriptors = new cv.Mat();
+      try{
+        cv.cvtColor(source,gray,cv.COLOR_RGBA2GRAY);
+        cv.equalizeHist(gray,normalized);
+        orb.detectAndCompute(normalized,mask,keypoints,descriptors);
 
-      cv.cvtColor(source, gray, cv.COLOR_RGBA2GRAY);
-      orb.detectAndCompute(
-        gray,
-        new cv.Mat(),
-        keypoints,
-        descriptors
-      );
+        if(descriptors.empty())throw new Error("Ảnh mẫu không có đặc trưng nhận diện.");
 
-      source.delete();
-      gray.delete();
-      keypoints.delete();
-
-      if (descriptors.empty()) {
+        return {
+          ...card,
+          descriptors:descriptors,
+          keypoints:keypoints,
+          width:img.naturalWidth,
+          height:img.naturalHeight
+        };
+      }catch(e){
         descriptors.delete();
-        throw new Error("Ảnh thẻ không có đủ chi tiết để nhận diện.");
+        keypoints.delete();
+        throw e;
+      }finally{
+        source.delete();
+        gray.delete();
+        normalized.delete();
+        mask.delete();
       }
-
-      return {
-        ...card,
-        descriptors
-      };
     }
 
-    async function loadCards() {
-      const snapshot = await getDocs(collection(db, "cards"));
-      const cards = [];
-
-      snapshot.forEach(doc => {
-        const data = doc.data();
-
-        if (data.imageUrl && data.videoUrl) {
-          cards.push({
-            id: doc.id,
-            name: data.name || "Thẻ chưa đặt tên",
-            imageUrl: data.imageUrl,
-            videoUrl: data.videoUrl
+    async function loadCardData(){
+      const snapshot=await getDocs(collection(db,"cards"));
+      const data=[];
+      snapshot.forEach(d=>{
+        const c=d.data();
+        if(c.imageUrl && c.videoUrl){
+          data.push({
+            id:d.id,
+            name:c.name || "Thẻ chưa đặt tên",
+            imageUrl:c.imageUrl,
+            videoUrl:c.videoUrl
           });
         }
       });
-
-      return cards;
+      return data;
     }
 
-    async function initializeRecognition() {
-      try {
-        setStatus("Đang tải bộ nhận diện thẻ...");
-
+    async function initializeRecognition(){
+      try{
+        status("Đang tải thư viện nhận diện...");
         await waitForOpenCV();
 
-        orb = new cv.ORB(1000);
-        matcher = new cv.BFMatcher(cv.NORM_HAMMING, false);
+        orb=new cv.ORB(
+          1800,1.2,8,31,0,2,
+          cv.ORB_HARRIS_SCORE,31,10
+        );
+        matcher=new cv.BFMatcher(cv.NORM_HAMMING,false);
 
-        const cards = await loadCards();
-
-        if (cards.length === 0) {
-          recognitionReady = true;
-          setStatus(
-            "Camera đã bật. Chưa có thẻ nào trong dữ liệu.",
-            stream ? "active" : "normal"
-          );
+        const sourceCards=await loadCardData();
+        if(sourceCards.length===0){
+          ready=true;
+          status("Chưa có thẻ nào. Hãy thêm thẻ trong trang quản trị.",stream?"ok":"normal");
           return;
         }
 
-        for (const card of cards) {
-          try {
-            const prepared = await createCardDescriptor(card);
-            referenceCards.push(prepared);
-          } catch (error) {
-            console.warn("Bỏ qua thẻ:", card.name, error);
+        for(const card of sourceCards){
+          try{
+            cards.push(await makeReference(card));
+          }catch(e){
+            console.warn("Không nạp được ảnh mẫu:",card.name,e);
           }
         }
 
-        recognitionReady = true;
-
-        if (stream) {
-          setStatus(
-            referenceCards.length
-              ? "Sẵn sàng nhận diện. Hãy đưa thẻ vào khung hình."
-              : "Chưa tải được ảnh mẫu của thẻ.",
-            referenceCards.length ? "active" : "error"
-          );
-        }
-
-      } catch (error) {
-        console.error("Recognition init error:", error);
-
-        setStatus(
-          "Camera vẫn hoạt động nhưng bộ nhận diện chưa tải được. Hãy tải lại trang để thử lại.",
-          "error"
+        ready=true;
+        status(
+          cards.length
+            ? "Đã tải "+cards.length+" thẻ. Hãy đưa thẻ vào khung hình."
+            : "Có dữ liệu thẻ nhưng không tải được ảnh mẫu.",
+          cards.length?"ok":"err"
         );
+      }catch(e){
+        console.error("Lỗi khởi tạo nhận diện:",e);
+        status("Không tải được bộ nhận diện. Kiểm tra kết nối hoặc tải lại trang.","err");
       }
     }
 
-    function compareDescriptors(cameraDescriptors, referenceDescriptors) {
-      const matches = new cv.DMatchVectorVector();
+    function matchCard(frameDescriptors,frameKeypoints,card){
+      const pairs=new cv.DMatchVectorVector();
+      let sourcePoints=null;
+      let targetPoints=null;
+      let homography=null;
+      let inlierMask=null;
 
-      try {
-        matcher.knnMatch(
-          cameraDescriptors,
-          referenceDescriptors,
-          matches,
-          2
-        );
+      try{
+        // So ảnh mẫu với khung camera
+        matcher.knnMatch(card.descriptors,frameDescriptors,pairs,2);
 
-        let goodMatches = 0;
+        const src=[];
+        const dst=[];
 
-        for (let i = 0; i < matches.size(); i++) {
-          const pair = matches.get(i);
+        for(let i=0;i<pairs.size();i++){
+          const pair=pairs.get(i);
+          if(pair.size()>=2){
+            const a=pair.get(0);
+            const b=pair.get(1);
 
-          if (pair.size() >= 2) {
-            const first = pair.get(0);
-            const second = pair.get(1);
-
-            if (first.distance < 0.72 * second.distance) {
-              goodMatches++;
+            if(a.distance < 0.76*b.distance){
+              const kpA=card.keypoints.get(a.queryIdx);
+              const kpB=frameKeypoints.get(a.trainIdx);
+              src.push(kpA.pt.x,kpA.pt.y);
+              dst.push(kpB.pt.x,kpB.pt.y);
+              kpA.delete();
+              kpB.delete();
             }
           }
-
           pair.delete();
         }
 
-        return goodMatches;
+        if(src.length/2<6)return 0;
 
-      } finally {
-        matches.delete();
+        sourcePoints=cv.matFromArray(src.length/2,1,cv.CV_32FC2,src);
+        targetPoints=cv.matFromArray(dst.length/2,1,cv.CV_32FC2,dst);
+        inlierMask=new cv.Mat();
+
+        homography=cv.findHomography(
+          sourcePoints,targetPoints,cv.RANSAC,5,inlierMask
+        );
+
+        if(homography.empty())return 0;
+
+        return cv.countNonZero(inlierMask);
+
+      }catch(e){
+        console.warn("So khớp ảnh gặp lỗi:",e);
+        return 0;
+      }finally{
+        pairs.delete();
+        if(sourcePoints)sourcePoints.delete();
+        if(targetPoints)targetPoints.delete();
+        if(homography)homography.delete();
+        if(inlierMask)inlierMask.delete();
       }
     }
 
-    function recognizeFrame() {
-      if (!recognitionReady ||
-          !cv ||
-          !stream ||
-          camera.readyState < 2 ||
-          recognizing ||
-          referenceCards.length === 0) {
-        return;
+    function recognize(){
+      if(!ready || !cv || !stream || camera.readyState<2 || busy || cards.length===0)return;
+      busy=true;
+
+      let source,gray,normalized,keypoints,descriptors,mask;
+
+      try{
+        const canvas=document.createElement("canvas");
+        canvas.width=camera.videoWidth;
+        canvas.height=camera.videoHeight;
+        const ctx=canvas.getContext("2d",{willReadFrequently:true});
+        ctx.drawImage(camera,0,0);
+
+        source=cv.imread(canvas);
+        gray=new cv.Mat();
+        normalized=new cv.Mat();
+        keypoints=new cv.KeyPointVector();
+        descriptors=new cv.Mat();
+        mask=new cv.Mat();
+
+        cv.cvtColor(source,gray,cv.COLOR_RGBA2GRAY);
+        cv.equalizeHist(gray,normalized);
+        orb.detectAndCompute(normalized,mask,keypoints,descriptors);
+
+        if(descriptors.empty())return;
+
+        let best=null;
+        let bestScore=0;
+
+        for(const card of cards){
+          const score=matchCard(descriptors,keypoints,card);
+          if(score>bestScore){
+            bestScore=score;
+            best=card;
+          }
+        }
+
+        console.log("Điểm nhận diện:",best?.name,bestScore);
+
+        // Kiểm tra hình học bằng RANSAC giúp giảm nhận nhầm.
+        if(best && bestScore>=7){
+          const now=Date.now();
+          if(best.id!==lastCardId || now-lastCardTime>10000){
+            lastCardId=best.id;
+            lastCardTime=now;
+            playCard(best);
+          }
+        }else{
+          status("Đang quét thẻ...", "ok");
+        }
+      }catch(e){
+        console.error("Lỗi khi quét:",e);
+      }finally{
+        if(source)source.delete();
+        if(gray)gray.delete();
+        if(normalized)normalized.delete();
+        if(keypoints)keypoints.delete();
+        if(descriptors)descriptors.delete();
+        if(mask)mask.delete();
+        busy=false;
       }
+    }
 
-      recognizing = true;
-
-      let source = null;
-      let gray = null;
-      let keypoints = null;
-      let descriptors = null;
-      let mask = null;
-
-      try {
-        source = new cv.Mat(
-          camera.videoHeight,
-          camera.videoWidth,
-          cv.CV_8UC4
-        );
-
-        const canvas = document.createElement("canvas");
-        canvas.width = camera.videoWidth;
-        canvas.height = camera.videoHeight;
-
-        const context = canvas.getContext("2d", {
-          willReadFrequently: true
-        });
-
-        context.drawImage(
-          camera,
-          0,
-          0,
-          canvas.width,
-          canvas.height
-        );
-
-        const frame = context.getImageData(
-          0,
-          0,
-          canvas.width,
-          canvas.height
-        );
-
-        source.data.set(frame.data);
-
-        gray = new cv.Mat();
-        keypoints = new cv.KeyPointVector();
-        descriptors = new cv.Mat();
-        mask = new cv.Mat();
-
-        cv.cvtColor(source, gray, cv.COLOR_RGBA2GRAY);
-        orb.detectAndCompute(
-          gray,
-          mask,
-          keypoints,
-          descriptors
-        );
-
-        if (descriptors.empty()) {
+    function startLoop(){
+      if(loopId)return;
+      const tick=(time)=>{
+        if(!stream){
+          loopId=null;
           return;
         }
-
-        let bestCard = null;
-        let bestScore = 0;
-
-        for (const card of referenceCards) {
-          const score = compareDescriptors(
-            descriptors,
-            card.descriptors
-          );
-
-          if (score > bestScore) {
-            bestScore = score;
-            bestCard = card;
-          }
+        if(time-lastScan>800){
+          lastScan=time;
+          recognize();
         }
-
-        // Ngưỡng ban đầu; có thể cần điều chỉnh theo ảnh thẻ thực tế.
-        if (bestCard && bestScore >= 12) {
-          const now = Date.now();
-
-          if (
-            bestCard.id !== lastMatchedId ||
-            now - lastMatchedTime > 8000
-          ) {
-            lastMatchedId = bestCard.id;
-            lastMatchedTime = now;
-            playCardVideo(bestCard);
-          }
-        }
-
-      } catch (error) {
-        console.error("Recognition frame error:", error);
-      } finally {
-        if (source) source.delete();
-        if (gray) gray.delete();
-        if (keypoints) keypoints.delete();
-        if (descriptors) descriptors.delete();
-        if (mask) mask.delete();
-
-        recognizing = false;
-      }
+        loopId=requestAnimationFrame(tick);
+      };
+      loopId=requestAnimationFrame(tick);
     }
 
-    function startScanLoop() {
-      if (scanning) return;
-
-      scanning = true;
-
-      let lastScan = 0;
-
-      function loop(timestamp) {
-        if (!scanning || !stream) return;
-
-        if (timestamp - lastScan > 900) {
-          lastScan = timestamp;
-          recognizeFrame();
-        }
-
-        scanTimer = requestAnimationFrame(loop);
-      }
-
-      scanTimer = requestAnimationFrame(loop);
-    }
-
-    function playCardVideo(card) {
+    function playCard(card){
       result.classList.add("show");
-      resultName.textContent = card.name;
-
-      if (resultVideo.src !== card.videoUrl) {
-        resultVideo.src = card.videoUrl;
-      }
-
-      resultVideo.load();
-
-      result.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest"
-      });
-
-      resultVideo.play().catch(() => {
-        // Trình duyệt có thể yêu cầu người dùng nhấn Play.
-      });
-
-      setStatus("Đã nhận diện: " + card.name, "active");
+      cardName.textContent=card.name;
+      if(video.src!==card.videoUrl)video.src=card.videoUrl;
+      video.load();
+      video.play().catch(()=>{});
+      status("Đã nhận diện: "+card.name,"ok");
+      result.scrollIntoView({behavior:"smooth",block:"nearest"});
     }
 
-    // Camera mở ngay khi trang tải; nhận diện chạy riêng ở nền.
+    // Camera và nhận diện được khởi động độc lập.
     startCamera();
     initializeRecognition();
   </script>
