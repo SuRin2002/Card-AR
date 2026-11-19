@@ -86,7 +86,7 @@
       object-fit: cover;
     }
 
-    #arContainer video {
+    #arContainer video:not(#arVideo) {
       object-fit: cover !important;
     }
 
@@ -252,6 +252,18 @@
       line-height: 1.6;
     }
 
+    .start-screen select {
+      width: 100%;
+      max-width: 340px;
+      padding: 13px;
+      border: 1px solid #344258;
+      border-radius: 10px;
+      background: #172235;
+      color: #fff;
+      font-size: 15px;
+      outline: none;
+    }
+
     .start-button {
       border: none;
       background: #22c8ef;
@@ -266,6 +278,26 @@
 
     .start-button:disabled {
       opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .change-button {
+      display: none;
+      position: absolute;
+      z-index: 12;
+      top: 65px;
+      right: 12px;
+      padding: 10px 14px;
+      border: 1px solid #344258;
+      border-radius: 22px;
+      background: rgba(16, 23, 37, .92);
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .change-button.show {
+      display: block;
     }
 
     .hidden {
@@ -293,11 +325,15 @@
       <div class="corner br"></div>
     </div>
 
-    <div class="status" id="status">Đang chờ khởi động</div>
+    <div class="status" id="status">Đang tải danh sách card...</div>
 
     <div class="hint" id="hint">
-      Đưa thẻ vào giữa khung hình để quét
+      Chọn card rồi đưa vào giữa khung hình
     </div>
+
+    <button class="change-button" id="changeButton">
+      Đổi card
+    </button>
 
     <div class="video-layer" id="videoLayer">
       <video id="arVideo" playsinline webkit-playsinline></video>
@@ -307,10 +343,15 @@
     <div class="start-screen" id="startScreen">
       <h2>AR Card Scanner</h2>
       <p>
-        Quét thẻ để xem video thực tế tăng cường.<br>
-        Nhấn nút bên dưới để bật camera.
+        Chọn card muốn quét.<br>
+        Sau đó đưa đúng card vào giữa khung hình.
       </p>
-      <button class="start-button" id="startButton">
+
+      <select id="cardSelect" disabled>
+        <option value="">Đang tải danh sách card...</option>
+      </select>
+
+      <button class="start-button" id="startButton" disabled>
         BẮT ĐẦU QUÉT
       </button>
     </div>
@@ -318,8 +359,8 @@
   </main>
 
   <footer>
-    <div id="mainStatus">Sẵn sàng</div>
-    <div id="subStatus">Đang chờ camera</div>
+    <div id="mainStatus">Đang tải dữ liệu</div>
+    <div id="subStatus">Đang kết nối Firestore</div>
   </footer>
 
 </div>
@@ -335,7 +376,6 @@
   } from
     "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  // FIREBASE CONFIG
   const firebaseConfig = {
     apiKey: "AIzaSyDFTvux73x5oAl273PN_0wzz_A1OVvh34c",
     authDomain: "ar-card-video.firebaseapp.com",
@@ -348,37 +388,33 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // ELEMENTS
-  const arContainer = document.getElementById("arContainer");
-  const video = document.getElementById("arVideo");
-  const videoLayer = document.getElementById("videoLayer");
-  const videoName = document.getElementById("videoName");
-  const statusEl = document.getElementById("status");
-  const mainStatus = document.getElementById("mainStatus");
-  const subStatus = document.getElementById("subStatus");
-  const hint = document.getElementById("hint");
-  const scanFrame = document.getElementById("scanFrame");
-  const startScreen = document.getElementById("startScreen");
-  const startButton = document.getElementById("startButton");
-  const soundButton = document.getElementById("soundButton");
+  const $ = id => document.getElementById(id);
 
-  // SETTINGS
-  const SCAN_TIMEOUT = 8000;
-  const NEXT_DELAY = 1000;
+  const arContainer = $("arContainer");
+  const video = $("arVideo");
+  const videoLayer = $("videoLayer");
+  const videoName = $("videoName");
+  const statusEl = $("status");
+  const mainStatus = $("mainStatus");
+  const subStatus = $("subStatus");
+  const hint = $("hint");
+  const scanFrame = $("scanFrame");
+  const startScreen = $("startScreen");
+  const startButton = $("startButton");
+  const soundButton = $("soundButton");
+  const cardSelect = $("cardSelect");
+  const changeButton = $("changeButton");
 
   let cards = [];
-  let currentIndex = 0;
+  let activeCard = null;
   let currentScene = null;
   let currentArSystem = null;
 
-  let scanTimer = null;
-  let nextTimer = null;
   let sessionId = 0;
-
   let isRunning = false;
   let isTargetFound = false;
   let soundEnabled = false;
-  let isSwitching = false;
+  let videoToken = 0;
 
   function setStatus(message, detail = "") {
     statusEl.textContent = message;
@@ -386,56 +422,32 @@
     subStatus.textContent = detail;
   }
 
-  function clearTimers() {
-    clearTimeout(scanTimer);
-    clearTimeout(nextTimer);
-    scanTimer = null;
-    nextTimer = null;
-  }
-
-  function stopVideo() {
-    video.pause();
-    video.removeAttribute("src");
-    video.load();
-
-    videoLayer.classList.remove("show");
-    videoName.textContent = "";
-  }
-
   function normalizeUrl(value) {
-    if (typeof value !== "string") return "";
-    return value.trim();
+    return typeof value === "string" ? value.trim() : "";
   }
 
-  // LOAD CARDS FROM FIRESTORE
+  function isHttpsUrl(value) {
+    try {
+      return new URL(value).protocol === "https:";
+    } catch {
+      return false;
+    }
+  }
+
   async function loadCards() {
     setStatus("Đang tải dữ liệu...", "Đang kết nối Firestore");
 
     const snapshot = await getDocs(collection(db, "cards"));
-
     const result = [];
 
-    snapshot.forEach((docSnap) => {
+    snapshot.forEach(docSnap => {
       const data = docSnap.data();
 
       const mindUrl = normalizeUrl(data.mindUrl);
       const videoUrl = normalizeUrl(data.videoUrl);
 
-      if (!mindUrl || !videoUrl) {
-        console.warn(
-          "Bỏ qua card thiếu mindUrl hoặc videoUrl:",
-          docSnap.id
-        );
-        return;
-      }
-
-      if (!mindUrl.startsWith("https://")) {
-        console.warn("mindUrl không hợp lệ:", docSnap.id);
-        return;
-      }
-
-      if (!videoUrl.startsWith("https://")) {
-        console.warn("videoUrl không hợp lệ:", docSnap.id);
+      if (!isHttpsUrl(mindUrl) || !isHttpsUrl(videoUrl)) {
+        console.warn("Bỏ qua card thiếu URL hợp lệ:", docSnap.id);
         return;
       }
 
@@ -445,14 +457,43 @@
         imageUrl: data.imageUrl || "",
         mindUrl,
         videoUrl,
-        ratio: Number(data.ratio) || 1.54
+        ratio: Number(data.ratio) || 1.54,
+        targetIndex: 0
       });
     });
 
     return result;
   }
 
-  // WAIT FOR A-FRAME SCENE
+  function populateCardSelect() {
+    cardSelect.replaceChildren();
+
+    if (!cards.length) {
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "Chưa có card hợp lệ";
+      cardSelect.append(option);
+      cardSelect.disabled = true;
+      startButton.disabled = true;
+      return;
+    }
+
+    const firstOption = document.createElement("option");
+    firstOption.value = "";
+    firstOption.textContent = "— Chọn card muốn quét —";
+    cardSelect.append(firstOption);
+
+    cards.forEach(card => {
+      const option = document.createElement("option");
+      option.value = card.id;
+      option.textContent = card.name;
+      cardSelect.append(option);
+    });
+
+    cardSelect.disabled = false;
+    startButton.disabled = false;
+  }
+
   function waitForSceneLoaded(scene) {
     return new Promise((resolve, reject) => {
       if (scene.hasLoaded) {
@@ -460,24 +501,23 @@
         return;
       }
 
-      const timeout = setTimeout(() => {
+      const timer = setTimeout(() => {
         reject(new Error("Scene khởi tạo quá thời gian."));
       }, 20000);
 
       scene.addEventListener("loaded", () => {
-        clearTimeout(timeout);
+        clearTimeout(timer);
         resolve();
       }, { once: true });
 
       scene.addEventListener("error", () => {
-        clearTimeout(timeout);
+        clearTimeout(timer);
         reject(new Error("Không thể khởi tạo A-Frame scene."));
       }, { once: true });
     });
   }
 
-  // WAIT FOR MINDAR CAMERA READY
-  function waitForArReady(scene, timeoutMs = 25000) {
+  function waitForArReady(scene, timeoutMs = 30000) {
     return new Promise((resolve, reject) => {
       let finished = false;
 
@@ -495,11 +535,12 @@
       };
 
       const onReady = () => done(resolve);
-      const onError = (event) => {
+
+      const onError = event => {
         done(
           reject,
           new Error(
-            event.detail?.error || "MindAR không thể khởi động."
+            event.detail?.error || "MindAR không thể khởi động camera."
           )
         );
       };
@@ -516,7 +557,97 @@
     });
   }
 
-  // STOP CURRENT SCENE
+  function stopVideo() {
+    videoToken++;
+
+    video.pause();
+    video.onended = null;
+    video.onerror = null;
+    video.removeAttribute("src");
+    video.load();
+
+    videoLayer.classList.remove("show");
+    videoName.textContent = "";
+  }
+
+  async function playCardVideo(card, thisSession) {
+    if (
+      !isRunning ||
+      thisSession !== sessionId ||
+      !activeCard ||
+      card.id !== activeCard.id ||
+      !isTargetFound
+    ) {
+      return;
+    }
+
+    const thisVideoToken = ++videoToken;
+
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+
+    video.src = card.videoUrl;
+    video.muted = !soundEnabled;
+    video.loop = false;
+    video.playsInline = true;
+
+    videoName.textContent = card.name;
+    videoLayer.classList.add("show");
+
+    video.onended = () => {
+      if (
+        thisSession !== sessionId ||
+        thisVideoToken !== videoToken ||
+        !isTargetFound
+      ) return;
+
+      setStatus(
+        "Video đã phát xong",
+        "Đưa thẻ ra rồi đưa lại vào để phát lại"
+      );
+    };
+
+    video.onerror = () => {
+      if (
+        thisSession !== sessionId ||
+        thisVideoToken !== videoToken
+      ) return;
+
+      setStatus(
+        "Không phát được video",
+        "Kiểm tra lại videoUrl trong Admin"
+      );
+    };
+
+    try {
+      await video.play();
+
+      if (
+        thisSession !== sessionId ||
+        thisVideoToken !== videoToken ||
+        !isTargetFound
+      ) {
+        video.pause();
+        return;
+      }
+
+      setStatus("Đã nhận diện: " + card.name, "Đang phát video");
+    } catch (error) {
+      console.warn("Không thể tự phát video:", error);
+
+      if (
+        thisSession === sessionId &&
+        thisVideoToken === videoToken
+      ) {
+        setStatus(
+          "Đã nhận diện: " + card.name,
+          "Chạm vào màn hình video để phát"
+        );
+      }
+    }
+  }
+
   async function destroyCurrentScene() {
     const oldScene = currentScene;
     const oldSystem = currentArSystem;
@@ -541,10 +672,9 @@
       }
     }
 
-    arContainer.innerHTML = "";
+    arContainer.replaceChildren();
   }
 
-  // CREATE A NEW SCENE FOR ONE CARD
   async function createScene(card, thisSession) {
     const scene = document.createElement("a-scene");
 
@@ -566,7 +696,6 @@
       "renderer",
       "colorManagement: true; physicallyCorrectLights: true; alpha: true"
     );
-
     scene.setAttribute("vr-mode-ui", "enabled: false");
     scene.setAttribute(
       "device-orientation-permission-ui",
@@ -587,7 +716,6 @@
 
     scene.appendChild(camera);
     scene.appendChild(target);
-
     arContainer.appendChild(scene);
 
     await waitForSceneLoaded(scene);
@@ -605,41 +733,44 @@
     currentScene = scene;
     currentArSystem = arSystem;
 
-    // Register target events before starting AR.
+    // Mỗi scene giữ cố định card được chọn.
     target.addEventListener("targetFound", () => {
-      if (thisSession !== sessionId) return;
+      if (
+        thisSession !== sessionId ||
+        !isRunning ||
+        !activeCard ||
+        activeCard.id !== card.id
+      ) return;
+
+      if (isTargetFound) return;
 
       isTargetFound = true;
-      clearTimeout(scanTimer);
-
-      const activeCard = cards[currentIndex];
-
-      setStatus(
-        "Đã nhận diện: " + activeCard.name,
-        "Đang phát video"
-      );
 
       scanFrame.style.borderColor = "#35e58b";
-      hint.textContent = "Đã nhận diện thẻ thành công";
+      hint.textContent = "Đã nhận diện: " + card.name;
 
-      playCardVideo(activeCard);
+      setStatus("Đã nhận diện: " + card.name, "Đang phát video");
+
+      playCardVideo(card, thisSession);
     });
 
     target.addEventListener("targetLost", () => {
-      if (thisSession !== sessionId) return;
+      if (
+        thisSession !== sessionId ||
+        !activeCard ||
+        activeCard.id !== card.id
+      ) return;
 
       isTargetFound = false;
       stopVideo();
 
       scanFrame.style.borderColor = "rgba(64, 217, 255, .8)";
-      hint.textContent = "Đưa thẻ vào giữa khung hình để quét";
+      hint.textContent = "Đưa đúng card vào giữa khung hình";
 
       setStatus(
-        "Đã mất dấu thẻ",
-        "Đang chuyển sang thẻ tiếp theo..."
+        "Đã mất dấu card",
+        "Đang chờ nhận diện lại: " + card.name
       );
-
-      scheduleNextCard(thisSession);
     });
 
     const readyPromise = waitForArReady(scene);
@@ -650,81 +781,41 @@
     if (thisSession !== sessionId) {
       throw new Error("Phiên quét đã bị thay đổi.");
     }
-
-    return scene;
   }
 
-  // PLAY VIDEO
-  async function playCardVideo(card) {
-    stopVideo();
+  async function startScanner() {
+    if (isRunning) return;
 
-    video.src = card.videoUrl;
-    video.muted = !soundEnabled;
-    video.loop = false;
+    const selectedId = cardSelect.value;
+    const card = cards.find(item => item.id === selectedId);
 
-    videoName.textContent = card.name;
-    videoLayer.classList.add("show");
-
-    try {
-      await video.play();
-    } catch (error) {
-      console.warn("Không thể tự phát video:", error);
-      setStatus(
-        "Đã nhận diện thẻ",
-        "Chạm vào màn hình để phát video"
-      );
+    if (!card) {
+      setStatus("Bạn chưa chọn card", "Hãy chọn card trước khi quét");
+      return;
     }
 
-    video.onended = () => {
-      if (!isTargetFound) return;
+    startButton.disabled = true;
+    startButton.textContent = "ĐANG KHỞI ĐỘNG...";
 
-      setStatus(
-        "Video đã phát xong",
-        "Giữ thẻ trong khung hình để xem lại"
-      );
-    };
-
-    video.onerror = () => {
-      setStatus(
-        "Không phát được video",
-        "Kiểm tra lại videoUrl trong Admin"
-      );
-    };
-  }
-
-  // SWITCH TO NEXT CARD
-  function scheduleNextCard(thisSession) {
-    if (isSwitching || thisSession !== sessionId) return;
-
-    clearTimeout(nextTimer);
-
-    nextTimer = setTimeout(() => {
-      if (thisSession !== sessionId) return;
-
-      currentIndex = (currentIndex + 1) % cards.length;
-      scanOneCard(thisSession);
-    }, NEXT_DELAY);
-  }
-
-  // SCAN ONE CARD
-  async function scanOneCard(thisSession) {
-    if (!isRunning || thisSession !== sessionId) return;
-
-    clearTimers();
-    isSwitching = true;
+    activeCard = card;
+    isRunning = true;
     isTargetFound = false;
+
+    sessionId++;
+    const thisSession = sessionId;
 
     stopVideo();
 
-    const card = cards[currentIndex];
+    startScreen.classList.add("hidden");
+    changeButton.classList.remove("show");
+
+    scanFrame.style.borderColor = "rgba(64, 217, 255, .8)";
+    hint.textContent = "Đưa card " + card.name + " vào giữa khung hình";
 
     setStatus(
-      "Đang quét: " + card.name,
-      `Thẻ ${currentIndex + 1}/${cards.length}`
+      "Đang tải nhận diện: " + card.name,
+      "Đang khởi động camera..."
     );
-
-    hint.textContent = "Đưa thẻ vào giữa khung hình để quét";
-    scanFrame.style.borderColor = "rgba(64, 217, 255, .8)";
 
     try {
       await destroyCurrentScene();
@@ -735,89 +826,63 @@
 
       if (thisSession !== sessionId) return;
 
-      isSwitching = false;
+      changeButton.classList.add("show");
 
-      // If this card is not found within the time limit,
-      // move to the next card.
-      scanTimer = setTimeout(() => {
-        if (
-          thisSession !== sessionId ||
-          isTargetFound
-        ) return;
-
-        setStatus(
-          "Chưa nhận diện: " + card.name,
-          "Đang thử thẻ tiếp theo..."
-        );
-
-        currentIndex = (currentIndex + 1) % cards.length;
-        scanOneCard(thisSession);
-      }, SCAN_TIMEOUT);
+      setStatus(
+        "Sẵn sàng quét: " + card.name,
+        "Đưa đúng card vào giữa khung hình"
+      );
 
     } catch (error) {
-      console.error("Lỗi quét card:", error);
+      console.error("Lỗi khởi động Scanner:", error);
 
       if (thisSession !== sessionId) return;
 
-      isSwitching = false;
-
-      setStatus(
-        "Lỗi quét thẻ",
-        error.message || "Không thể khởi động nhận diện."
-      );
-
-      scanTimer = setTimeout(() => {
-        if (thisSession !== sessionId) return;
-
-        currentIndex = (currentIndex + 1) % cards.length;
-        scanOneCard(thisSession);
-      }, 3000);
-    }
-  }
-
-  // START SCANNER
-  async function startScanner() {
-    if (isRunning) return;
-
-    startButton.disabled = true;
-    startButton.textContent = "ĐANG KHỞI ĐỘNG...";
-
-    try {
-      cards = await loadCards();
-
-      if (cards.length === 0) {
-        throw new Error(
-          "Chưa có card hợp lệ. Kiểm tra mindUrl và videoUrl trong Admin."
-        );
-      }
-
-      isRunning = true;
-      sessionId++;
-      currentIndex = 0;
-
-      startScreen.classList.add("hidden");
-
-      setStatus(
-        "Đã tải " + cards.length + " thẻ",
-        "Đang khởi động camera..."
-      );
-
-      await scanOneCard(sessionId);
-
-    } catch (error) {
-      console.error(error);
-
       isRunning = false;
+      activeCard = null;
+
+      await destroyCurrentScene();
+
       startScreen.classList.remove("hidden");
 
-      setStatus("Không thể khởi động Scanner", error.message);
-
+      setStatus(
+        "Không thể khởi động Scanner",
+        error.message || "Vui lòng kiểm tra camera và file .mind"
+      );
+    } finally {
       startButton.disabled = false;
-      startButton.textContent = "THỬ LẠI";
+      startButton.textContent = "BẮT ĐẦU QUÉT";
     }
   }
 
-  // SOUND CONTROL
+  async function changeCard() {
+    if (!isRunning) return;
+
+    isRunning = false;
+    isTargetFound = false;
+    sessionId++;
+
+    stopVideo();
+
+    changeButton.classList.remove("show");
+
+    setStatus("Đang dừng camera...", "Chuẩn bị chọn card khác");
+
+    await destroyCurrentScene();
+
+    activeCard = null;
+
+    scanFrame.style.borderColor = "rgba(64, 217, 255, .8)";
+    hint.textContent = "Chọn card rồi đưa vào giữa khung hình";
+
+    startScreen.classList.remove("hidden");
+
+    setStatus(
+      "Đã dừng quét",
+      "Chọn card khác nếu muốn tiếp tục"
+    );
+  }
+
   soundButton.addEventListener("click", async () => {
     soundEnabled = !soundEnabled;
     video.muted = !soundEnabled;
@@ -830,17 +895,58 @@
       try {
         await video.play();
       } catch (error) {
-        console.warn(error);
+        console.warn("Không thể bật âm thanh:", error);
       }
     }
   });
 
-  // START BUTTON
   startButton.addEventListener("click", startScanner);
+  changeButton.addEventListener("click", changeCard);
 
-  // CLEANUP
+  // Tải danh sách card khi mở trang.
+  async function initializeScanner() {
+    try {
+      cards = await loadCards();
+      populateCardSelect();
+
+      if (!cards.length) {
+        setStatus(
+          "Chưa có card hợp lệ",
+          "Kiểm tra mindUrl và videoUrl trong Admin"
+        );
+        $("hint").textContent = "Chưa có card để quét";
+        return;
+      }
+
+      setStatus(
+        "Đã tải " + cards.length + " card",
+        "Chọn card muốn quét"
+      );
+
+      hint.textContent = "Chọn card rồi đưa vào giữa khung hình";
+
+    } catch (error) {
+      console.error("Lỗi tải card:", error);
+
+      setStatus(
+        "Không tải được danh sách card",
+        error.message
+      );
+
+      cardSelect.replaceChildren();
+
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "Lỗi tải dữ liệu";
+      cardSelect.append(option);
+
+      startButton.disabled = true;
+    }
+  }
+
   window.addEventListener("beforeunload", () => {
-    clearTimers();
+    sessionId++;
+    stopVideo();
 
     if (currentArSystem) {
       try {
@@ -849,10 +955,9 @@
         console.warn(error);
       }
     }
-
-    video.pause();
   });
 
+  initializeScanner();
 </script>
 </body>
 </html>
