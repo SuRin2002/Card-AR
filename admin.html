@@ -23,27 +23,41 @@ input[type=file]{background:#f8fafc}
 .hint{margin-top:6px;color:#64748b;font-size:12px;line-height:1.5}
 button{padding:11px 17px;margin-top:16px;border:0;border-radius:9px;background:#2563eb;color:white;font-size:14px;font-weight:bold;cursor:pointer}
 button:disabled{opacity:.5;cursor:not-allowed}
-.btn-dark{background:#172033}.btn-light{background:#e9eef7;color:#334155}
-.btn-danger{background:#fee2e2;color:#b91c1c}.btn-edit{background:#e0eaff;color:#1d4ed8}
+.btn-dark{background:#172033}
+.btn-light{background:#e9eef7;color:#334155}
+.btn-danger{background:#fee2e2;color:#b91c1c}
+.btn-edit{background:#e0eaff;color:#1d4ed8}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
 #status,#loginStatus{margin-top:14px;white-space:pre-wrap;font-size:13px;line-height:1.6}
 #loginBox{max-width:430px;margin:60px auto}
 .login-title{text-align:center;margin-bottom:24px}
 .login-title .symbol{width:52px;height:52px;display:grid;place-items:center;margin:0 auto 14px;border-radius:15px;background:#e8efff;color:#2563eb;font-size:25px}
-.login-title h2{margin:0 0 8px}.login-title p{margin:0;color:#64748b;font-size:13px}
+.login-title h2{margin:0 0 8px}
+.login-title p{margin:0;color:#64748b;font-size:13px}
 .login-btn{width:100%}
 .section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
-.section-head h2{margin:0}.card-count{color:#64748b;font-size:13px}
+.section-head h2{margin:0}
+.card-count{color:#64748b;font-size:13px}
 .item{display:flex;align-items:center;gap:15px;padding:16px 0;border-bottom:1px solid #edf0f5}
 .item:last-child{border-bottom:0}
 .card-image{width:76px;height:90px;object-fit:cover;border-radius:9px;background:#f1f5f9;border:1px solid #e2e8f0;flex-shrink:0}
-.card-info{flex:1;min-width:0}.card-info strong{display:block;font-size:15px;margin-bottom:7px;overflow-wrap:anywhere}
+.card-info{flex:1;min-width:0}
+.card-info strong{display:block;font-size:15px;margin-bottom:7px;overflow-wrap:anywhere}
 .card-info small{display:block;color:#64748b;font-size:12px;margin-top:4px;overflow-wrap:anywhere}
-.card-actions{display:flex;gap:7px;flex-wrap:wrap}.card-actions button{margin:0;padding:9px 12px;font-size:12px}
+.card-actions{display:flex;gap:7px;flex-wrap:wrap}
+.card-actions button{margin:0;padding:9px 12px;font-size:12px}
 .empty{padding:30px 10px;text-align:center;color:#94a3b8;font-size:14px}
 #cancelEditBtn{display:none}
 .note{padding:12px;border-radius:9px;background:#eff6ff;color:#1d4ed8;font-size:13px;line-height:1.6;margin-bottom:16px}
-@media(max-width:600px){body{padding:16px 12px 35px}.box{padding:18px}.heading h1{font-size:23px}.item{align-items:flex-start;flex-wrap:wrap}.card-image{width:65px;height:78px}.card-actions{width:100%;padding-left:80px}.card-actions button{flex:1}}
+@media(max-width:600px){
+ body{padding:16px 12px 35px}
+ .box{padding:18px}
+ .heading h1{font-size:23px}
+ .item{align-items:flex-start;flex-wrap:wrap}
+ .card-image{width:65px;height:78px}
+ .card-actions{width:100%;padding-left:80px}
+ .card-actions button{flex:1}
+}
 </style>
 </head>
 <body>
@@ -71,39 +85,27 @@ button:disabled{opacity:.5;cursor:not-allowed}
     </div>
 
     <div class="box">
-      <h2>File nhận diện dùng chung</h2>
-      <div class="note">
-        Tất cả card phải nằm trong cùng một file .mind. Nếu thay file .mind, hãy bảo đảm các giá trị targetIndex bên dưới khớp với thứ tự ảnh trong file mới.
-      </div>
-      <label>Link file .mind hiện tại</label>
-      <input id="sharedMindUrl" type="url" placeholder="https://res.cloudinary.com/.../targets.mind">
-      <label>Tải file .mind mới (không bắt buộc)</label>
-      <input id="sharedMindFile" type="file" accept=".mind">
-      <div class="hint">Nếu chọn file mới, Admin tải lên Cloudinary và cập nhật mindUrl chung cho tất cả card đang có.</div>
-      <button id="saveMindBtn" class="btn-dark">Cập nhật file nhận diện chung</button>
-      <div id="mindStatus"></div>
-    </div>
-
-    <div class="box">
       <h2 id="formTitle">Thêm Card mới</h2>
+
       <div class="note">
-        targetIndex là vị trí ảnh trong file .mind: ảnh đầu tiên = 0, ảnh thứ hai = 1, ảnh thứ ba = 2...
-        Mỗi card phải có targetIndex riêng, không được trùng nhau.
+        Mỗi card sử dụng một file .mind riêng, chứa một ảnh nhận diện.
+        Vì vậy Target Index của mỗi card tự động là 0.
       </div>
 
       <label>Tên card</label>
       <input id="cardName" type="text" placeholder="Ví dụ: iPhone">
 
-      <label>Target Index</label>
-      <input id="targetIndex" type="number" min="0" step="1" placeholder="Ví dụ: 0">
-      <div class="hint">Nhập đúng vị trí ảnh trong file .mind đã biên dịch.</div>
-
       <label>Ảnh gốc của card</label>
       <input id="imageFile" type="file" accept="image/*">
       <div id="imageHint" class="hint">Chọn ảnh gốc để tải lên Cloudinary.</div>
 
+      <label>File nhận diện riêng của card (.mind)</label>
+      <input id="mindFile" type="file" accept=".mind,application/octet-stream">
+      <div id="mindHint" class="hint">Chọn file .mind đã biên dịch cho riêng card này.</div>
+
       <label>Link video Cloudinary</label>
       <input id="videoUrl" type="url" placeholder="https://...">
+
       <label>Tỉ lệ chiều cao / chiều rộng</label>
       <input id="ratio" type="number" value="1.54" step="0.01" min="0.01">
 
@@ -127,10 +129,12 @@ button:disabled{opacity:.5;cursor:not-allowed}
 
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
 import {
   getFirestore,collection,addDoc,getDocs,deleteDoc,updateDoc,doc,
   query,orderBy,serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
 import {
   getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -146,6 +150,7 @@ const firebaseConfig={
 
 const CLOUD_NAME="cjhppbjd";
 const UPLOAD_PRESET="ml_default";
+
 const app=initializeApp(firebaseConfig);
 const db=getFirestore(app);
 const auth=getAuth(app);
@@ -165,43 +170,64 @@ async function uploadCloudinary(file,type){
   const form=new FormData();
   form.append("file",file);
   form.append("upload_preset",UPLOAD_PRESET);
+
   const response=await fetch(endpoint,{method:"POST",body:form});
   const data=await response.json();
-  if(!response.ok) throw new Error(data.error?.message||"Cloudinary upload lỗi");
-  if(!data.secure_url) throw new Error("Cloudinary không trả về Secure URL");
+
+  if(!response.ok){
+    throw new Error(data.error?.message||"Cloudinary upload lỗi");
+  }
+
+  if(!data.secure_url){
+    throw new Error("Cloudinary không trả về Secure URL");
+  }
+
   return data.secure_url;
 }
 
+/* LOGIN */
 $("loginBtn").addEventListener("click",async()=>{
   setMessage("loginStatus","");
   $("loginBtn").disabled=true;
+
   try{
-    await signInWithEmailAndPassword(auth,$("email").value.trim(),$("password").value);
+    await signInWithEmailAndPassword(
+      auth,
+      $("email").value.trim(),
+      $("password").value
+    );
   }catch(error){
     setMessage("loginStatus",error.message,true);
-  }finally{$("loginBtn").disabled=false;}
+  }finally{
+    $("loginBtn").disabled=false;
+  }
 });
-$("password").addEventListener("keydown",e=>{if(e.key==="Enter")$("loginBtn").click();});
+
+$("password").addEventListener("keydown",e=>{
+  if(e.key==="Enter")$("loginBtn").click();
+});
+
 $("logoutBtn").addEventListener("click",()=>signOut(auth));
 
 onAuthStateChanged(auth,user=>{
   $("loginBox").style.display=user?"none":"block";
   $("adminArea").style.display=user?"block":"none";
-  if(user) loadCards();
+  if(user)loadCards();
 });
 
+/* LOAD CARD LIST */
 async function loadCards(){
   try{
-    const snap=await getDocs(query(collection(db,"cards"),orderBy("createdAt","desc")));
+    const snap=await getDocs(
+      query(collection(db,"cards"),orderBy("createdAt","desc"))
+    );
+
     cardsCache=snap.docs.map(d=>({id:d.id,...d.data()}));
     $("cardCount").textContent=cardsCache.length+" card";
 
-    const mindUrls=[...new Set(cardsCache.map(c=>c.mindUrl).filter(Boolean))];
-    if(mindUrls.length===1) $("sharedMindUrl").value=mindUrls[0];
-    else if(mindUrls.length>1) setMessage("mindStatus","Cảnh báo: dữ liệu đang có nhiều mindUrl khác nhau. Hãy chọn file nhận diện đúng và cập nhật chung.",true);
-
     const list=$("cardList");
     list.replaceChildren();
+
     if(!cardsCache.length){
       const empty=document.createElement("div");
       empty.className="empty";
@@ -213,6 +239,7 @@ async function loadCards(){
     cardsCache.forEach(data=>{
       const row=document.createElement("div");
       row.className="item";
+
       const image=document.createElement("img");
       image.className="card-image";
       image.alt="Ảnh card";
@@ -221,18 +248,24 @@ async function loadCards(){
 
       const info=document.createElement("div");
       info.className="card-info";
+
       const name=document.createElement("strong");
       name.textContent=data.name||"Card không tên";
-      const index=document.createElement("small");
-      index.textContent="Target Index: "+(Number.isInteger(data.targetIndex)?data.targetIndex:"CHƯA CÓ");
+
+      const mind=document.createElement("small");
+      mind.textContent="Mind file: "+(data.mindUrl?"Đã có file riêng":"CHƯA CÓ");
+
       const video=document.createElement("small");
       video.textContent="Video: "+(data.videoUrl||"Chưa có");
+
       const ratio=document.createElement("small");
       ratio.textContent="Tỉ lệ: "+(data.ratio||1.54);
-      info.append(name,index,video,ratio);
+
+      info.append(name,mind,video,ratio);
 
       const actions=document.createElement("div");
       actions.className="card-actions";
+
       const edit=document.createElement("button");
       edit.className="btn-edit";
       edit.textContent="Sửa";
@@ -241,12 +274,17 @@ async function loadCards(){
       const remove=document.createElement("button");
       remove.className="btn-danger";
       remove.textContent="Xóa";
+
       remove.addEventListener("click",async()=>{
         if(!confirm(`Xóa card "${data.name||"Card"}"?`))return;
+
         remove.disabled=true;
+
         try{
           await deleteDoc(doc(db,"cards",data.id));
+
           if(editingId===data.id)resetForm();
+
           setMessage("status","Đã xóa card.");
           await loadCards();
         }catch(error){
@@ -254,126 +292,166 @@ async function loadCards(){
           remove.disabled=false;
         }
       });
+
       actions.append(edit,remove);
       row.append(image,info,actions);
       list.append(row);
     });
+
   }catch(error){
     $("cardList").textContent="Lỗi tải danh sách: "+error.message;
   }
 }
 
+/* EDIT */
 function startEdit(id,data){
   editingId=id;
   editingData=data;
+
   $("formTitle").textContent="Chỉnh sửa Card";
   $("cardName").value=data.name||"";
-  $("targetIndex").value=Number.isInteger(data.targetIndex)?data.targetIndex:"";
   $("videoUrl").value=data.videoUrl||"";
   $("ratio").value=data.ratio||1.54;
+
   $("imageFile").value="";
-  $("imageHint").textContent=data.imageUrl?"Đã có ảnh. Chọn ảnh mới nếu muốn thay thế.":"Card chưa có ảnh.";
+  $("mindFile").value="";
+
+  $("imageHint").textContent=data.imageUrl
+    ?"Đã có ảnh. Chọn ảnh mới nếu muốn thay thế."
+    :"Card chưa có ảnh.";
+
+  $("mindHint").textContent=data.mindUrl
+    ?"Đã có Mind file. Chọn file mới nếu muốn thay thế."
+    :"Card chưa có Mind file. Hãy chọn file .mind.";
+
   $("saveBtn").textContent="Lưu thay đổi";
   $("cancelEditBtn").style.display="inline-block";
+
   setMessage("status","Đang chỉnh sửa: "+(data.name||"Card"));
   window.scrollTo({top:0,behavior:"smooth"});
 }
 
+/* RESET FORM */
 function resetForm(){
   editingId=null;
   editingData=null;
+
   $("formTitle").textContent="Thêm Card mới";
   $("cardName").value="";
-  $("targetIndex").value="";
   $("imageFile").value="";
+  $("mindFile").value="";
   $("videoUrl").value="";
   $("ratio").value="1.54";
+
   $("imageHint").textContent="Chọn ảnh gốc để tải lên Cloudinary.";
+  $("mindHint").textContent="Chọn file .mind đã biên dịch cho riêng card này.";
+
   $("saveBtn").textContent="Tải lên và lưu card";
   $("cancelEditBtn").style.display="none";
+
   setMessage("status","");
 }
+
 $("cancelEditBtn").addEventListener("click",resetForm);
 
-$("saveMindBtn").addEventListener("click",async()=>{
-  const file=$("sharedMindFile").files[0];
-  let mindUrl=$("sharedMindUrl").value.trim();
-  if(!file&&!mindUrl){
-    setMessage("mindStatus","Hãy nhập link .mind hoặc chọn file .mind mới.",true);
-    return;
-  }
-  const btn=$("saveMindBtn");
-  btn.disabled=true;
-  try{
-    if(file){
-      setMessage("mindStatus","Đang tải file .mind lên Cloudinary...");
-      mindUrl=await uploadCloudinary(file,"raw");
-    }
-    new URL(mindUrl);
-    if(!mindUrl.startsWith("https://"))throw new Error("Link .mind phải là HTTPS.");
-    setMessage("mindStatus","Đang cập nhật mindUrl cho các card...");
-    for(const card of cardsCache){
-      await updateDoc(doc(db,"cards",card.id),{mindUrl});
-    }
-    $("sharedMindUrl").value=mindUrl;
-    $("sharedMindFile").value="";
-    setMessage("mindStatus",`Đã cập nhật file nhận diện cho ${cardsCache.length} card.`);
-    await loadCards();
-  }catch(error){
-    setMessage("mindStatus","Lỗi: "+error.message,true);
-  }finally{btn.disabled=false;}
-});
-
+/* SAVE CARD */
 $("saveBtn").addEventListener("click",async()=>{
   const name=$("cardName").value.trim();
-  const targetIndex=Number($("targetIndex").value);
   const image=$("imageFile").files[0];
+  const mindFile=$("mindFile").files[0];
   const videoUrl=$("videoUrl").value.trim();
   const ratio=Number($("ratio").value);
-  const mindUrl=$("sharedMindUrl").value.trim();
 
-  if(!name||!videoUrl){setMessage("status","Vui lòng nhập tên card và link video.",true);return;}
-  if(!Number.isInteger(targetIndex)||targetIndex<0){setMessage("status","Target Index phải là số nguyên từ 0 trở lên.",true);return;}
-  if(!editingId&&!image){setMessage("status","Khi thêm card mới, cần chọn ảnh.",true);return;}
-  if(editingId&&!image&&!editingData?.imageUrl){setMessage("status","Card chưa có ảnh. Vui lòng chọn ảnh.",true);return;}
-  if(!mindUrl){setMessage("status","Hãy nhập hoặc cập nhật link file .mind dùng chung ở phần trên.",true);return;}
+  if(!name||!videoUrl){
+    setMessage("status","Vui lòng nhập tên card và link video.",true);
+    return;
+  }
+
+  if(!editingId&&!image){
+    setMessage("status","Khi thêm card mới, cần chọn ảnh gốc.",true);
+    return;
+  }
+
+  if(!editingId&&!mindFile){
+    setMessage("status","Khi thêm card mới, cần chọn file .mind riêng.",true);
+    return;
+  }
+
+  if(editingId&&!image&&!editingData?.imageUrl){
+    setMessage("status","Card chưa có ảnh. Vui lòng chọn ảnh.",true);
+    return;
+  }
+
+  if(editingId&&!mindFile&&!editingData?.mindUrl){
+    setMessage("status","Card chưa có Mind file. Vui lòng chọn file .mind.",true);
+    return;
+  }
+
   try{
     const parsed=new URL(videoUrl);
     if(parsed.protocol!=="https:")throw new Error();
-  }catch{setMessage("status","Link video phải là URL HTTPS hợp lệ.",true);return;}
-  if(!(ratio>0)){setMessage("status","Tỉ lệ phải lớn hơn 0.",true);return;}
+  }catch{
+    setMessage("status","Link video phải là URL HTTPS hợp lệ.",true);
+    return;
+  }
 
-  const duplicate=cardsCache.find(c=>c.id!==editingId&&Number(c.targetIndex)===targetIndex);
-  if(duplicate){
-    setMessage("status",`Target Index ${targetIndex} đã được dùng bởi card "${duplicate.name}". Mỗi card phải có index riêng.`,true);
+  if(!(ratio>0)){
+    setMessage("status","Tỉ lệ phải lớn hơn 0.",true);
     return;
   }
 
   const btn=$("saveBtn");
   btn.disabled=true;
+
   try{
     let imageUrl=editingData?.imageUrl||"";
+    let mindUrl=editingData?.mindUrl||"";
+
     if(image){
-      setMessage("status","Đang tải ảnh lên Cloudinary...");
+      setMessage("status","Đang tải ảnh card lên Cloudinary...");
       imageUrl=await uploadCloudinary(image,"image");
     }
 
-    const cardData={name,imageUrl,mindUrl,videoUrl,ratio,targetIndex};
+    if(mindFile){
+      if(!mindFile.name.toLowerCase().endsWith(".mind")){
+        throw new Error("File nhận diện phải có đuôi .mind");
+      }
+
+      setMessage("status","Đang tải Mind file riêng của card lên Cloudinary...");
+      mindUrl=await uploadCloudinary(mindFile,"raw");
+    }
+
+    const cardData={
+      name,
+      imageUrl,
+      mindUrl,
+      videoUrl,
+      ratio,
+      targetIndex:0
+    };
+
     if(editingId){
       setMessage("status","Đang cập nhật card...");
       await updateDoc(doc(db,"cards",editingId),cardData);
       setMessage("status","Đã cập nhật card thành công!");
     }else{
       setMessage("status","Đang lưu card vào Firestore...");
-      await addDoc(collection(db,"cards"),{...cardData,createdAt:serverTimestamp()});
+      await addDoc(collection(db,"cards"),{
+        ...cardData,
+        createdAt:serverTimestamp()
+      });
       setMessage("status","Đã thêm card thành công!");
     }
+
     resetForm();
     await loadCards();
+
   }catch(error){
     console.error(error);
     setMessage("status","Lỗi: "+error.message,true);
-  }finally{btn.disabled=false;}
+  }finally{
+    btn.disabled=false;
+  }
 });
 </script>
 </body>
