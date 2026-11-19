@@ -1,1067 +1,858 @@
-```html
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#0b1020">
-<title>AR Card Scanner</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AR Card Scanner</title>
 
-<style>
-*{
-  box-sizing:border-box;
-  margin:0;
-  padding:0;
-}
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
-html,body{
-  min-height:100%;
-  background:#0b1020;
-  color:#f3f6ff;
-  font-family:Arial,sans-serif;
-}
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-body{
-  min-height:100vh;
-  padding:12px 12px 25px;
-  background:radial-gradient(ellipse at 50% -10%,#243b61,#0b1020 65%);
-}
+    body {
+      background: #080b12;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      min-height: 100vh;
+      overflow: hidden;
+    }
 
-.wrap{
-  max-width:760px;
-  margin:auto;
-}
+    .app {
+      width: 100%;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background: #080b12;
+    }
 
-.header{
-  text-align:center;
-  margin:12px 0 16px;
-}
+    header {
+      height: 64px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      border-bottom: 1px solid #202838;
+      background: #101725;
+      z-index: 10;
+    }
 
-.header h1{
-  font-size:25px;
-  letter-spacing:.5px;
-}
+    .logo {
+      font-size: 18px;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
 
-.header p{
-  color:#91a3bf;
-  font-size:13px;
-  margin-top:8px;
-}
+    .logo span {
+      color: #40d9ff;
+    }
 
-.panel{
-  background:#121d30;
-  border:1px solid #2a3b57;
-  border-radius:18px;
-  padding:12px;
-  margin-bottom:15px;
-}
+    .sound-button {
+      border: 1px solid #344258;
+      color: #fff;
+      background: #1b2638;
+      border-radius: 20px;
+      padding: 9px 14px;
+      cursor: pointer;
+    }
 
-/* CAMERA DỌC */
-.camera{
-  position:relative;
-  isolation:isolate;
-  overflow:hidden;
-  width:min(100%,420px);
-  aspect-ratio:9/16;
-  max-height:75svh;
-  margin:auto;
-  background:#050a13;
-  border-radius:13px;
-}
+    .camera-area {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+      overflow: hidden;
+      background: #000;
+    }
 
-/* VIDEO CAMERA THẬT CỦA MINDAR */
-.camera video:not(#arVideo){
-  position:absolute!important;
-  inset:0!important;
-  width:100%!important;
-  height:100%!important;
-  object-fit:cover!important;
-  z-index:0!important;
-  display:block!important;
-}
+    #arContainer,
+    #arContainer a-scene {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
 
-/* LỚP A-FRAME TRONG SUỐT */
-#arScene{
-  position:absolute!important;
-  inset:0!important;
-  width:100%!important;
-  height:100%!important;
-  z-index:1!important;
-  background:transparent!important;
-}
+    #arContainer canvas {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover;
+    }
 
-#arScene canvas.a-canvas{
-  position:absolute!important;
-  inset:0!important;
-  width:100%!important;
-  height:100%!important;
-  z-index:1!important;
-  background:transparent!important;
-}
+    #arContainer video {
+      object-fit: cover !important;
+    }
 
-/* KHUNG HƯỚNG DẪN QUÉT */
-.scan-frame{
-  position:absolute;
-  z-index:5;
-  inset:12%;
-  border:2px solid rgba(255,255,255,.65);
-  border-radius:13px;
-  pointer-events:none;
-  box-shadow:0 0 0 1000px rgba(0,0,0,.10);
-}
+    .scan-frame {
+      position: absolute;
+      width: min(72vw, 330px);
+      height: min(72vw, 330px);
+      max-height: 45%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      border: 2px solid rgba(64, 217, 255, .8);
+      border-radius: 22px;
+      box-shadow: 0 0 25px rgba(64, 217, 255, .12);
+      pointer-events: none;
+      z-index: 3;
+    }
 
-/* TRẠNG THÁI */
-.status{
-  margin-top:12px;
-  padding:12px;
-  border-radius:10px;
-  background:#0c1729;
-  color:#a9bbd5;
-  font-size:13px;
-  line-height:1.6;
-  text-align:center;
-  overflow-wrap:anywhere;
-}
+    .corner {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      border-color: #40d9ff;
+      border-style: solid;
+    }
 
-.status.error{
-  color:#ff8998;
-}
+    .tl {
+      top: -2px;
+      left: -2px;
+      border-width: 4px 0 0 4px;
+      border-radius: 12px 0 0;
+    }
 
-.status.success{
-  color:#6de3ac;
-}
+    .tr {
+      top: -2px;
+      right: -2px;
+      border-width: 4px 4px 0 0;
+      border-radius: 0 12px 0 0;
+    }
 
-/* ÂM THANH */
-.audio-control{
-  margin-top:12px;
-  text-align:center;
-}
+    .bl {
+      bottom: -2px;
+      left: -2px;
+      border-width: 0 0 4px 4px;
+      border-radius: 0 0 0 12px;
+    }
 
-button{
-  border:0;
-  border-radius:10px;
-  padding:12px 24px;
-  font-weight:700;
-  color:white;
-  background:#293b58;
-  cursor:pointer;
-}
+    .br {
+      bottom: -2px;
+      right: -2px;
+      border-width: 0 4px 4px 0;
+      border-radius: 0 0 12px;
+    }
 
-/* KẾT QUẢ */
-.result{
-  display:none;
-  margin-top:12px;
-  padding:13px;
-  border:1px solid #36547a;
-  border-radius:13px;
-  background:#0d192b;
-  text-align:center;
-}
+    .hint {
+      position: absolute;
+      top: calc(50% + min(36vw, 165px) + 25px);
+      left: 15px;
+      right: 15px;
+      text-align: center;
+      color: #d5e5f4;
+      font-size: 14px;
+      z-index: 4;
+      text-shadow: 0 2px 5px #000;
+      pointer-events: none;
+    }
 
-.result h2{
-  font-size:16px;
-  margin-bottom:6px;
-}
+    .status {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(10, 18, 30, .85);
+      border: 1px solid #304158;
+      border-radius: 30px;
+      padding: 9px 16px;
+      font-size: 13px;
+      white-space: nowrap;
+      z-index: 5;
+      max-width: 90%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
-.result p{
-  font-size:12px;
-  color:#a9bbd5;
-}
+    .video-layer {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: #000;
+      z-index: 6;
+      align-items: center;
+      justify-content: center;
+    }
 
-.footer{
-  text-align:center;
-  color:#70839f;
-  font-size:11px;
-  margin-top:16px;
-  line-height:1.6;
-}
+    .video-layer.show {
+      display: flex;
+    }
 
-@media(max-height:650px){
-  .camera{
-    max-height:65svh;
-  }
-}
-</style>
+    #arVideo {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000;
+    }
+
+    .video-name {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 18px;
+      text-align: center;
+      font-size: 15px;
+      color: white;
+      text-shadow: 0 2px 6px #000;
+      pointer-events: none;
+    }
+
+    footer {
+      flex-shrink: 0;
+      min-height: 76px;
+      padding: 13px 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+      background: #101725;
+      border-top: 1px solid #202838;
+      z-index: 10;
+    }
+
+    #mainStatus {
+      font-size: 14px;
+      font-weight: bold;
+      color: #40d9ff;
+    }
+
+    #subStatus {
+      font-size: 12px;
+      color: #8c9bb0;
+    }
+
+    .start-screen {
+      position: absolute;
+      inset: 0;
+      background: #080b12;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      padding: 25px;
+      text-align: center;
+      gap: 16px;
+    }
+
+    .start-screen h2 {
+      font-size: 24px;
+    }
+
+    .start-screen p {
+      color: #9baabe;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .start-button {
+      border: none;
+      background: #22c8ef;
+      color: #061018;
+      font-weight: bold;
+      font-size: 16px;
+      padding: 14px 30px;
+      border-radius: 30px;
+      margin-top: 8px;
+      cursor: pointer;
+    }
+
+    .start-button:disabled {
+      opacity: .5;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
 </head>
 
 <body>
+<div class="app">
 
-<main class="wrap">
-
-  <header class="header">
-    <h1>AR CARD SCANNER</h1>
-    <p>Đưa mặt trước lá bài vào camera để xem video</p>
+  <header>
+    <div class="logo">AR <span>CARD</span></div>
+    <button class="sound-button" id="soundButton">🔇 Bật âm thanh</button>
   </header>
 
-  <section class="panel">
+  <main class="camera-area">
 
-    <div class="camera" id="cameraBox">
-      <div class="scan-frame"></div>
+    <div id="arContainer"></div>
+
+    <div class="scan-frame" id="scanFrame">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
     </div>
 
-    <div id="status" class="status">
-      Đang khởi động hệ thống AR...
+    <div class="status" id="status">Đang chờ khởi động</div>
+
+    <div class="hint" id="hint">
+      Đưa thẻ vào giữa khung hình để quét
     </div>
 
-    <div class="audio-control">
-      <button id="audioButton">Bật âm thanh</button>
+    <div class="video-layer" id="videoLayer">
+      <video id="arVideo" playsinline webkit-playsinline></video>
+      <div class="video-name" id="videoName"></div>
     </div>
 
-    <section id="result" class="result">
-      <h2 id="resultName"></h2>
-      <p>Đã nhận diện lá bài thành công!</p>
-    </section>
+    <div class="start-screen" id="startScreen">
+      <h2>AR Card Scanner</h2>
+      <p>
+        Quét thẻ để xem video thực tế tăng cường.<br>
+        Nhấn nút bên dưới để bật camera.
+      </p>
+      <button class="start-button" id="startButton">
+        BẮT ĐẦU QUÉT
+      </button>
+    </div>
 
-  </section>
+  </main>
 
-  <p class="footer">
-    Đưa mặt trước lá bài vào khung hình.
-    Giữ điện thoại ổn định, đủ ánh sáng và tránh bị lóa.
-  </p>
+  <footer>
+    <div id="mainStatus">Sẵn sàng</div>
+    <div id="subStatus">Đang chờ camera</div>
+  </footer>
 
-</main>
+</div>
 
 <script type="module">
-
-import {initializeApp}
-from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-
-import {
-  getFirestore,
-  collection,
-  getDocs
-}
-from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-/* FIREBASE CONFIG - GIỮ NGUYÊN */
-
-const firebaseConfig = {
-  apiKey: "AIzaSyDFTvux73x5oAl273PN_0wzz_A1OVvh34c",
-  authDomain: "ar-card-video.firebaseapp.com",
-  projectId: "ar-card-video",
-  storageBucket: "ar-card-video.firebasestorage.app",
-  messagingSenderId: "725938606795",
-  appId: "1:725938606795:web:516149f4210f26344bc14e"
-};
-
-/* ELEMENTS */
-
-const cameraBox = document.getElementById("cameraBox");
-const statusBox = document.getElementById("status");
-const audioButton = document.getElementById("audioButton");
-const resultBox = document.getElementById("result");
-const resultName = document.getElementById("resultName");
-
-let db;
-let sceneEl;
-let videoEl;
-let arSystem;
-
-let cards = [];
-let audioEnabled = false;
-let activeCardId = null;
-let playVersion = 0;
-let initialized = false;
-let starting = false;
-
-/* STATUS */
-
-function setStatus(message,type=""){
-  statusBox.textContent = message;
-  statusBox.className = "status " + type;
-}
-
-/* LOAD SCRIPT IN ORDER */
-
-function loadScript(src){
-
-  return new Promise((resolve,reject)=>{
-
-    const script = document.createElement("script");
-
-    script.src = src;
-    script.onload = resolve;
-
-    script.onerror = ()=>{
-      reject(new Error("Không tải được thư viện: "+src));
-    };
-
-    document.head.appendChild(script);
-
-  });
-
-}
-
-/* WAIT FOR A-FRAME SCENE */
-
-function waitForScene(){
-
-  return new Promise((resolve,reject)=>{
-
-    if(sceneEl.hasLoaded){
-      resolve();
-      return;
-    }
-
-    const timeout = setTimeout(()=>{
-      reject(new Error("A-Frame khởi tạo quá lâu."));
-    },20000);
-
-    sceneEl.addEventListener("loaded",()=>{
-      clearTimeout(timeout);
-      resolve();
-    },{once:true});
-
-  });
-
-}
-
-/* MAKE CANVAS TRANSPARENT */
-
-function makeCanvasTransparent(){
-
-  if(!sceneEl || !sceneEl.renderer) return;
-
-  try{
-
-    sceneEl.renderer.setClearColor(0x000000,0);
-    sceneEl.renderer.setClearAlpha(0);
-
-    if(sceneEl.canvas){
-      sceneEl.canvas.style.background="transparent";
-    }
-
-  }catch(error){
-
-    console.warn("Canvas transparency:",error);
-
-  }
-
-}
-
-/* LOAD IMAGE RATIO */
-
-function getImageRatio(url){
-
-  return new Promise(resolve=>{
-
-    const img = new Image();
-
-    const timeout = setTimeout(()=>{
-      resolve(0.7);
-    },10000);
-
-    img.onload = ()=>{
-
-      clearTimeout(timeout);
-
-      if(img.naturalWidth && img.naturalHeight){
-        resolve(img.naturalHeight/img.naturalWidth);
-      }else{
-        resolve(0.7);
-      }
-
-    };
-
-    img.onerror = ()=>{
-
-      clearTimeout(timeout);
-      resolve(0.7);
-
-    };
-
-    img.src = url;
-
-  });
-
-}
-
-/* WAIT FOR VIDEO METADATA */
-
-function waitForVideo(){
-
-  return new Promise((resolve,reject)=>{
-
-    if(videoEl.readyState>=1){
-      resolve();
-      return;
-    }
-
-    const timeout = setTimeout(()=>{
-
-      cleanup();
-
-      reject(new Error("Video tải quá lâu."));
-
-    },25000);
-
-    function cleanup(){
-
-      clearTimeout(timeout);
-
-      videoEl.removeEventListener("loadedmetadata",success);
-      videoEl.removeEventListener("error",failed);
-
-    }
-
-    function success(){
-
-      cleanup();
-      resolve();
-
-    }
-
-    function failed(){
-
-      cleanup();
-
-      reject(
-        new Error("Không tải được video. Hãy kiểm tra videoUrl.")
-      );
-
-    }
-
-    videoEl.addEventListener("loadedmetadata",success);
-    videoEl.addEventListener("error",failed);
-
-  });
-
-}
-
-/* LOAD ALL CARDS FROM FIREBASE */
-
-async function loadCards(){
-
-  setStatus("Đang kết nối Firebase...");
-
-  const snapshot = await getDocs(
-    collection(db,"cards")
-  );
-
-  const loadedCards = [];
-
-  snapshot.forEach(document=>{
-
-    const data = document.data();
-
-    const imageUrl =
-      data.imageUrl ||
-      (
-        Array.isArray(data.imageUrls)
-        ? data.imageUrls[0]
-        : ""
-      );
-
-    if(imageUrl && data.videoUrl){
-
-      loadedCards.push({
-        id:document.id,
-        ...data,
-        imageUrl
-      });
-
-    }
-
-  });
-
-  if(loadedCards.length===0){
-
-    throw new Error(
-      "Không tìm thấy card nào có đủ imageUrl và videoUrl."
-    );
-
-  }
-
-  /* KIỂM TRA MIND URL */
-
-  const mindUrls = [
-    ...new Set(
-      loadedCards
-        .map(card=>(card.mindUrl||"").trim())
-        .filter(Boolean)
-    )
-  ];
-
-  if(mindUrls.length===0){
-
-    throw new Error(
-      "Firestore chưa có mindUrl. Hãy cập nhật file .mind trong Admin."
-    );
-
-  }
-
-  if(mindUrls.length>1){
-
-    throw new Error(
-      "Các card đang có mindUrl khác nhau. Hãy cập nhật một file .mind dùng chung trong Admin."
-    );
-
-  }
-
-  const mindUrl = mindUrls[0];
-
-  try{
-
-    const parsed = new URL(mindUrl);
-
-    if(parsed.protocol!=="https:"){
-      throw new Error();
-    }
-
-  }catch{
-
-    throw new Error("mindUrl không phải đường dẫn HTTPS hợp lệ.");
-
-  }
-
-  /* KIỂM TRA TARGET INDEX */
-
-  for(const card of loadedCards){
-
-    if(
-      card.targetIndex===undefined ||
-      card.targetIndex===null ||
-      card.targetIndex==="" ||
-      !Number.isInteger(Number(card.targetIndex)) ||
-      Number(card.targetIndex)<0
-    ){
-
-      throw new Error(
-        'Card "'+(card.name||card.id)+
-        '" chưa có targetIndex hợp lệ trong Firestore.'
-      );
-
-    }
-
-    card.targetIndex = Number(card.targetIndex);
-
-  }
-
-  /* KIỂM TRA INDEX TRÙNG */
-
-  const usedIndexes = new Set();
-
-  for(const card of loadedCards){
-
-    if(usedIndexes.has(card.targetIndex)){
-
-      throw new Error(
-        "Có nhiều card dùng chung targetIndex "+
-        card.targetIndex+". Hãy sửa trong Admin."
-      );
-
-    }
-
-    usedIndexes.add(card.targetIndex);
-
-  }
-
-  /* SẮP XẾP THEO TARGET INDEX */
-
-  loadedCards.sort((a,b)=>
-    a.targetIndex-b.targetIndex
-  );
-
-  cards = loadedCards;
-
-  console.log("MindAR URL:",mindUrl);
-  console.log("Danh sách card:",cards);
-
-  return {
-    cards,
-    mindUrl
+  import { initializeApp } from
+    "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
+  import {
+    getFirestore,
+    collection,
+    getDocs
+  } from
+    "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  // FIREBASE CONFIG
+  const firebaseConfig = {
+    apiKey: "AIzaSyDFTvux73x5oAl273PN_0wzz_A1OVvh34c",
+    authDomain: "ar-card-video.firebaseapp.com",
+    projectId: "ar-card-video",
+    storageBucket: "ar-card-video.firebasestorage.app",
+    messagingSenderId: "725938606795",
+    appId: "1:725938606795:web:516149f4210f26344bc14e"
   };
 
-}
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-/* CREATE A-FRAME SCENE AFTER FIREBASE DATA IS READY */
+  // ELEMENTS
+  const arContainer = document.getElementById("arContainer");
+  const video = document.getElementById("arVideo");
+  const videoLayer = document.getElementById("videoLayer");
+  const videoName = document.getElementById("videoName");
+  const statusEl = document.getElementById("status");
+  const mainStatus = document.getElementById("mainStatus");
+  const subStatus = document.getElementById("subStatus");
+  const hint = document.getElementById("hint");
+  const scanFrame = document.getElementById("scanFrame");
+  const startScreen = document.getElementById("startScreen");
+  const startButton = document.getElementById("startButton");
+  const soundButton = document.getElementById("soundButton");
 
-function createScene(mindUrl){
+  // SETTINGS
+  const SCAN_TIMEOUT = 8000;
+  const NEXT_DELAY = 1000;
 
-  sceneEl = document.createElement("a-scene");
+  let cards = [];
+  let currentIndex = 0;
+  let currentScene = null;
+  let currentArSystem = null;
 
-  sceneEl.id = "arScene";
+  let scanTimer = null;
+  let nextTimer = null;
+  let sessionId = 0;
 
-  sceneEl.setAttribute("embedded","");
-  sceneEl.setAttribute(
-    "mindar-image",
-    [
-      "imageTargetSrc: "+mindUrl,
-      "autoStart: false",
-      "maxTrack: 1",
-      "uiLoading: no",
-      "uiScanning: no",
-      "uiError: no"
-    ].join("; ")
-  );
+  let isRunning = false;
+  let isTargetFound = false;
+  let soundEnabled = false;
+  let isSwitching = false;
 
-  sceneEl.setAttribute("color-space","sRGB");
-
-  sceneEl.setAttribute(
-    "renderer",
-    "alpha: true; antialias: true; colorManagement: true"
-  );
-
-  sceneEl.setAttribute("vr-mode-ui","enabled: false");
-  sceneEl.setAttribute(
-    "device-orientation-permission-ui",
-    "enabled: false"
-  );
-
-  sceneEl.setAttribute(
-    "background",
-    "transparent: true"
-  );
-
-  /* ASSETS */
-
-  const assetsEl = document.createElement("a-assets");
-
-  assetsEl.setAttribute("timeout","30000");
-
-  videoEl = document.createElement("video");
-
-  videoEl.id = "arVideo";
-  videoEl.setAttribute("crossorigin","anonymous");
-  videoEl.setAttribute("playsinline","");
-  videoEl.setAttribute("webkit-playsinline","");
-  videoEl.setAttribute("loop","");
-  videoEl.setAttribute("muted","");
-
-  videoEl.muted = true;
-  videoEl.loop = true;
-  videoEl.playsInline = true;
-
-  assetsEl.appendChild(videoEl);
-
-  sceneEl.appendChild(assetsEl);
-
-  /* CAMERA */
-
-  const cameraEl = document.createElement("a-camera");
-
-  cameraEl.setAttribute("position","0 0 0");
-  cameraEl.setAttribute(
-    "look-controls",
-    "enabled: false"
-  );
-
-  sceneEl.appendChild(cameraEl);
-
-  /* CREATE ONE TARGET FOR EACH CARD */
-
-  cards.forEach(card=>{
-
-    const targetEl = document.createElement("a-entity");
-
-    targetEl.id = "cardTarget"+card.targetIndex;
-
-    targetEl.setAttribute(
-      "mindar-image-target",
-      "targetIndex: "+card.targetIndex
-    );
-
-    const planeEl = document.createElement("a-video");
-
-    planeEl.id = "cardVideoPlane"+card.targetIndex;
-
-    planeEl.setAttribute("src","#arVideo");
-    planeEl.setAttribute("position","0 0 0.01");
-    planeEl.setAttribute("width","1");
-    planeEl.setAttribute("height","0.7");
-
-    planeEl.setAttribute(
-      "material",
-      "shader: flat; side: double"
-    );
-
-    targetEl.appendChild(planeEl);
-
-    targetEl.addEventListener(
-      "targetFound",
-      ()=>onTargetFound(card,planeEl)
-    );
-
-    targetEl.addEventListener(
-      "targetLost",
-      ()=>onTargetLost(card)
-    );
-
-    sceneEl.appendChild(targetEl);
-
-  });
-
-  /* ADD SCENE TO CAMERA CONTAINER */
-
-  cameraBox.insertBefore(
-    sceneEl,
-    cameraBox.querySelector(".scan-frame")
-  );
-
-}
-
-/* PREPARE THE SELECTED CARD VIDEO */
-
-async function prepareCard(card,planeEl,version){
-
-  videoEl.pause();
-
-  videoEl.removeAttribute("src");
-  videoEl.load();
-
-  videoEl.crossOrigin = "anonymous";
-  videoEl.muted = !audioEnabled;
-  videoEl.loop = true;
-  videoEl.playsInline = true;
-
-  videoEl.src = card.videoUrl;
-  videoEl.load();
-
-  await waitForVideo();
-
-  /* IGNORE OLD REQUEST IF ANOTHER CARD WAS FOUND */
-
-  if(version!==playVersion) return false;
-
-  const cardHeight = await getImageRatio(card.imageUrl);
-
-  if(version!==playVersion) return false;
-
-  const videoWidth = videoEl.videoWidth || 16;
-  const videoHeight = videoEl.videoHeight || 9;
-
-  const videoRatio = videoWidth/videoHeight;
-  const cardRatio = 1/cardHeight;
-
-  let planeWidth = 1;
-  let planeHeight = cardHeight;
-
-  /* FIT VIDEO INSIDE CARD */
-
-  if(videoRatio>cardRatio){
-
-    planeWidth = 1;
-    planeHeight = 1/videoRatio;
-
-  }else{
-
-    planeHeight = cardHeight;
-    planeWidth = cardHeight*videoRatio;
-
+  function setStatus(message, detail = "") {
+    statusEl.textContent = message;
+    mainStatus.textContent = message;
+    subStatus.textContent = detail;
   }
 
-  planeEl.setAttribute("width",planeWidth);
-  planeEl.setAttribute("height",planeHeight);
-
-  console.log(
-    "Card:",card.name,
-    "Target:",card.targetIndex,
-    "Video ratio:",videoRatio
-  );
-
-  return true;
-
-}
-
-/* TARGET FOUND */
-
-async function onTargetFound(card,planeEl){
-
-  if(activeCardId===card.id) return;
-
-  activeCardId = card.id;
-
-  const thisVersion = ++playVersion;
-
-  resultName.textContent =
-    card.name || "Card AR";
-
-  resultBox.style.display = "block";
-
-  setStatus(
-    "Đã nhận diện "+(card.name||"Card AR")+
-    ". Đang tải video..."
-  );
-
-  try{
-
-    const prepared = await prepareCard(
-      card,
-      planeEl,
-      thisVersion
-    );
-
-    if(!prepared) return;
-
-    if(activeCardId!==card.id) return;
-
-    videoEl.muted = !audioEnabled;
-
-    await videoEl.play();
-
-    if(
-      thisVersion!==playVersion ||
-      activeCardId!==card.id
-    ){
-
-      videoEl.pause();
-      return;
-
-    }
-
-    setStatus(
-      "Đã nhận diện: "+(card.name||"Card AR"),
-      "success"
-    );
-
-  }catch(error){
-
-    console.error("Video play error:",error);
-
-    if(
-      thisVersion===playVersion &&
-      activeCardId===card.id
-    ){
-
-      setStatus(
-        "Đã nhận diện thẻ nhưng video không phát được: "+
-        error.message,
-        "error"
-      );
-
-    }
-
+  function clearTimers() {
+    clearTimeout(scanTimer);
+    clearTimeout(nextTimer);
+    scanTimer = null;
+    nextTimer = null;
   }
 
-}
+  function stopVideo() {
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
 
-/* TARGET LOST - KEEP CAMERA RUNNING */
-
-function onTargetLost(card){
-
-  if(activeCardId!==card.id) return;
-
-  activeCardId = null;
-
-  playVersion++;
-
-  videoEl.pause();
-
-  resultBox.style.display = "none";
-
-  setStatus(
-    "Đưa mặt trước lá bài vào khung hình để xem video."
-  );
-
-}
-
-/* AUDIO BUTTON */
-
-audioButton.addEventListener("click",async()=>{
-
-  audioEnabled = !audioEnabled;
-
-  audioButton.textContent = audioEnabled
-    ? "Tắt âm thanh"
-    : "Bật âm thanh";
-
-  if(!videoEl) return;
-
-  videoEl.muted = !audioEnabled;
-
-  if(audioEnabled && activeCardId){
-
-    try{
-
-      await videoEl.play();
-
-    }catch(error){
-
-      console.warn(error);
-
-      setStatus(
-        "Không thể bật âm thanh video.",
-        "error"
-      );
-
-    }
-
+    videoLayer.classList.remove("show");
+    videoName.textContent = "";
   }
 
-});
+  function normalizeUrl(value) {
+    if (typeof value !== "string") return "";
+    return value.trim();
+  }
 
-/* START AR */
+  // LOAD CARDS FROM FIRESTORE
+  async function loadCards() {
+    setStatus("Đang tải dữ liệu...", "Đang kết nối Firestore");
 
-async function initializeAR(){
+    const snapshot = await getDocs(collection(db, "cards"));
 
-  if(starting || initialized) return;
+    const result = [];
 
-  starting = true;
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
 
-  try{
+      const mindUrl = normalizeUrl(data.mindUrl);
+      const videoUrl = normalizeUrl(data.videoUrl);
 
-    setStatus("Đang kết nối Firebase...");
-
-    /* FIREBASE */
-
-    const app = initializeApp(firebaseConfig);
-
-    db = getFirestore(app);
-
-    /* LOAD CARDS AND SHARED MIND URL */
-
-    const result = await loadCards();
-
-    const mindUrl = result.mindUrl;
-
-    /* LOAD A-FRAME FIRST */
-
-    setStatus(
-      "Đã tải "+cards.length+
-      " card. Đang nạp hệ thống AR..."
-    );
-
-    await loadScript(
-      "https://aframe.io/releases/1.5.0/aframe.min.js"
-    );
-
-    /* LOAD MINDAR AFTER A-FRAME */
-
-    await loadScript(
-      "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"
-    );
-
-    /* CREATE SCENE USING FIRESTORE MIND URL */
-
-    createScene(mindUrl);
-
-    /* WAIT FOR A-FRAME TO INITIALIZE */
-
-    await waitForScene();
-
-    makeCanvasTransparent();
-
-    /* GET MINDAR SYSTEM */
-
-    arSystem =
-      sceneEl.systems["mindar-image-system"];
-
-    if(!arSystem){
-
-      throw new Error(
-        "Không tìm thấy MindAR Image System."
-      );
-
-    }
-
-    /* LISTEN FOR READY BEFORE STARTING */
-
-    const readyPromise = new Promise((resolve,reject)=>{
-
-      const timeout = setTimeout(()=>{
-
-        cleanup();
-
-        reject(
-          new Error("Camera khởi động quá lâu.")
+      if (!mindUrl || !videoUrl) {
+        console.warn(
+          "Bỏ qua card thiếu mindUrl hoặc videoUrl:",
+          docSnap.id
         );
-
-      },35000);
-
-      function cleanup(){
-
-        clearTimeout(timeout);
-
-        sceneEl.removeEventListener(
-          "arReady",
-          ready
-        );
-
-        sceneEl.removeEventListener(
-          "arError",
-          failed
-        );
-
+        return;
       }
 
-      function ready(){
-
-        cleanup();
-        resolve();
-
+      if (!mindUrl.startsWith("https://")) {
+        console.warn("mindUrl không hợp lệ:", docSnap.id);
+        return;
       }
 
-      function failed(event){
-
-        cleanup();
-
-        const detail =
-          event?.detail?.error?.message ||
-          event?.detail?.message ||
-          "MindAR không thể khởi động camera.";
-
-        reject(new Error(detail));
-
+      if (!videoUrl.startsWith("https://")) {
+        console.warn("videoUrl không hợp lệ:", docSnap.id);
+        return;
       }
 
-      sceneEl.addEventListener("arReady",ready);
-      sceneEl.addEventListener("arError",failed);
-
+      result.push({
+        id: docSnap.id,
+        name: data.name || "Thẻ AR",
+        imageUrl: data.imageUrl || "",
+        mindUrl,
+        videoUrl,
+        ratio: Number(data.ratio) || 1.54
+      });
     });
 
-    setStatus(
-      "Đang mở camera. Vui lòng chờ..."
-    );
-
-    /* START CAMERA AND MINDAR */
-
-    await arSystem.start();
-
-    await readyPromise;
-
-    makeCanvasTransparent();
-
-    initialized = true;
-
-    setStatus(
-      "Camera đã sẵn sàng. Có "+
-      cards.length+
-      " card để nhận diện. Hãy đưa thẻ vào khung hình."
-    );
-
-    console.log("AR ready.");
-    console.log("Cards loaded:",cards.length);
-    console.log("Mind file:",mindUrl);
-
-  }catch(error){
-
-    console.error(
-      "AR initialization error:",
-      error
-    );
-
-    setStatus(
-      "Lỗi khởi động: "+error.message,
-      "error"
-    );
-
-  }finally{
-
-    starting = false;
-
+    return result;
   }
 
-}
+  // WAIT FOR A-FRAME SCENE
+  function waitForSceneLoaded(scene) {
+    return new Promise((resolve, reject) => {
+      if (scene.hasLoaded) {
+        resolve();
+        return;
+      }
 
-/* START WHEN PAGE LOADS */
+      const timeout = setTimeout(() => {
+        reject(new Error("Scene khởi tạo quá thời gian."));
+      }, 20000);
 
-initializeAR();
+      scene.addEventListener("loaded", () => {
+        clearTimeout(timeout);
+        resolve();
+      }, { once: true });
 
-/* KHÔNG DỪNG CAMERA KHI TARGET LOST.
-   CAMERA CHỈ DỪNG KHI ĐÓNG TRANG. */
+      scene.addEventListener("error", () => {
+        clearTimeout(timeout);
+        reject(new Error("Không thể khởi tạo A-Frame scene."));
+      }, { once: true });
+    });
+  }
+
+  // WAIT FOR MINDAR CAMERA READY
+  function waitForArReady(scene, timeoutMs = 25000) {
+    return new Promise((resolve, reject) => {
+      let finished = false;
+
+      const cleanup = () => {
+        scene.removeEventListener("arReady", onReady);
+        scene.removeEventListener("arError", onError);
+        clearTimeout(timer);
+      };
+
+      const done = (callback, value) => {
+        if (finished) return;
+        finished = true;
+        cleanup();
+        callback(value);
+      };
+
+      const onReady = () => done(resolve);
+      const onError = (event) => {
+        done(
+          reject,
+          new Error(
+            event.detail?.error || "MindAR không thể khởi động."
+          )
+        );
+      };
+
+      const timer = setTimeout(() => {
+        done(
+          reject,
+          new Error("Không nhận được tín hiệu camera từ MindAR.")
+        );
+      }, timeoutMs);
+
+      scene.addEventListener("arReady", onReady);
+      scene.addEventListener("arError", onError);
+    });
+  }
+
+  // STOP CURRENT SCENE
+  async function destroyCurrentScene() {
+    const oldScene = currentScene;
+    const oldSystem = currentArSystem;
+
+    currentScene = null;
+    currentArSystem = null;
+
+    if (oldSystem) {
+      try {
+        await oldSystem.stop();
+      } catch (error) {
+        console.warn("Lỗi khi dừng MindAR:", error);
+      }
+    }
+
+    if (oldScene) {
+      try {
+        oldScene.pause();
+        oldScene.remove();
+      } catch (error) {
+        console.warn("Lỗi khi xóa scene:", error);
+      }
+    }
+
+    arContainer.innerHTML = "";
+  }
+
+  // CREATE A NEW SCENE FOR ONE CARD
+  async function createScene(card, thisSession) {
+    const scene = document.createElement("a-scene");
+
+    scene.setAttribute(
+      "mindar-image",
+      [
+        `imageTargetSrc: ${card.mindUrl}`,
+        "autoStart: false",
+        "uiLoading: false",
+        "uiError: false",
+        "uiScanning: false",
+        "maxTrack: 1"
+      ].join("; ") + ";"
+    );
+
+    scene.setAttribute("embedded", "");
+    scene.setAttribute("color-space", "sRGB");
+    scene.setAttribute(
+      "renderer",
+      "colorManagement: true; physicallyCorrectLights: true; alpha: true"
+    );
+
+    scene.setAttribute("vr-mode-ui", "enabled: false");
+    scene.setAttribute(
+      "device-orientation-permission-ui",
+      "enabled: false"
+    );
+
+    scene.style.position = "absolute";
+    scene.style.inset = "0";
+    scene.style.width = "100%";
+    scene.style.height = "100%";
+
+    const camera = document.createElement("a-camera");
+    camera.setAttribute("position", "0 0 0");
+    camera.setAttribute("look-controls", "enabled: false");
+
+    const target = document.createElement("a-entity");
+    target.setAttribute("mindar-image-target", "targetIndex: 0");
+
+    scene.appendChild(camera);
+    scene.appendChild(target);
+
+    arContainer.appendChild(scene);
+
+    await waitForSceneLoaded(scene);
+
+    if (thisSession !== sessionId) {
+      throw new Error("Phiên quét đã bị thay đổi.");
+    }
+
+    const arSystem = scene.systems["mindar-image-system"];
+
+    if (!arSystem) {
+      throw new Error("Không tìm thấy MindAR system.");
+    }
+
+    currentScene = scene;
+    currentArSystem = arSystem;
+
+    // Register target events before starting AR.
+    target.addEventListener("targetFound", () => {
+      if (thisSession !== sessionId) return;
+
+      isTargetFound = true;
+      clearTimeout(scanTimer);
+
+      const activeCard = cards[currentIndex];
+
+      setStatus(
+        "Đã nhận diện: " + activeCard.name,
+        "Đang phát video"
+      );
+
+      scanFrame.style.borderColor = "#35e58b";
+      hint.textContent = "Đã nhận diện thẻ thành công";
+
+      playCardVideo(activeCard);
+    });
+
+    target.addEventListener("targetLost", () => {
+      if (thisSession !== sessionId) return;
+
+      isTargetFound = false;
+      stopVideo();
+
+      scanFrame.style.borderColor = "rgba(64, 217, 255, .8)";
+      hint.textContent = "Đưa thẻ vào giữa khung hình để quét";
+
+      setStatus(
+        "Đã mất dấu thẻ",
+        "Đang chuyển sang thẻ tiếp theo..."
+      );
+
+      scheduleNextCard(thisSession);
+    });
+
+    const readyPromise = waitForArReady(scene);
+
+    await arSystem.start();
+    await readyPromise;
+
+    if (thisSession !== sessionId) {
+      throw new Error("Phiên quét đã bị thay đổi.");
+    }
+
+    return scene;
+  }
+
+  // PLAY VIDEO
+  async function playCardVideo(card) {
+    stopVideo();
+
+    video.src = card.videoUrl;
+    video.muted = !soundEnabled;
+    video.loop = false;
+
+    videoName.textContent = card.name;
+    videoLayer.classList.add("show");
+
+    try {
+      await video.play();
+    } catch (error) {
+      console.warn("Không thể tự phát video:", error);
+      setStatus(
+        "Đã nhận diện thẻ",
+        "Chạm vào màn hình để phát video"
+      );
+    }
+
+    video.onended = () => {
+      if (!isTargetFound) return;
+
+      setStatus(
+        "Video đã phát xong",
+        "Giữ thẻ trong khung hình để xem lại"
+      );
+    };
+
+    video.onerror = () => {
+      setStatus(
+        "Không phát được video",
+        "Kiểm tra lại videoUrl trong Admin"
+      );
+    };
+  }
+
+  // SWITCH TO NEXT CARD
+  function scheduleNextCard(thisSession) {
+    if (isSwitching || thisSession !== sessionId) return;
+
+    clearTimeout(nextTimer);
+
+    nextTimer = setTimeout(() => {
+      if (thisSession !== sessionId) return;
+
+      currentIndex = (currentIndex + 1) % cards.length;
+      scanOneCard(thisSession);
+    }, NEXT_DELAY);
+  }
+
+  // SCAN ONE CARD
+  async function scanOneCard(thisSession) {
+    if (!isRunning || thisSession !== sessionId) return;
+
+    clearTimers();
+    isSwitching = true;
+    isTargetFound = false;
+
+    stopVideo();
+
+    const card = cards[currentIndex];
+
+    setStatus(
+      "Đang quét: " + card.name,
+      `Thẻ ${currentIndex + 1}/${cards.length}`
+    );
+
+    hint.textContent = "Đưa thẻ vào giữa khung hình để quét";
+    scanFrame.style.borderColor = "rgba(64, 217, 255, .8)";
+
+    try {
+      await destroyCurrentScene();
+
+      if (thisSession !== sessionId) return;
+
+      await createScene(card, thisSession);
+
+      if (thisSession !== sessionId) return;
+
+      isSwitching = false;
+
+      // If this card is not found within the time limit,
+      // move to the next card.
+      scanTimer = setTimeout(() => {
+        if (
+          thisSession !== sessionId ||
+          isTargetFound
+        ) return;
+
+        setStatus(
+          "Chưa nhận diện: " + card.name,
+          "Đang thử thẻ tiếp theo..."
+        );
+
+        currentIndex = (currentIndex + 1) % cards.length;
+        scanOneCard(thisSession);
+      }, SCAN_TIMEOUT);
+
+    } catch (error) {
+      console.error("Lỗi quét card:", error);
+
+      if (thisSession !== sessionId) return;
+
+      isSwitching = false;
+
+      setStatus(
+        "Lỗi quét thẻ",
+        error.message || "Không thể khởi động nhận diện."
+      );
+
+      scanTimer = setTimeout(() => {
+        if (thisSession !== sessionId) return;
+
+        currentIndex = (currentIndex + 1) % cards.length;
+        scanOneCard(thisSession);
+      }, 3000);
+    }
+  }
+
+  // START SCANNER
+  async function startScanner() {
+    if (isRunning) return;
+
+    startButton.disabled = true;
+    startButton.textContent = "ĐANG KHỞI ĐỘNG...";
+
+    try {
+      cards = await loadCards();
+
+      if (cards.length === 0) {
+        throw new Error(
+          "Chưa có card hợp lệ. Kiểm tra mindUrl và videoUrl trong Admin."
+        );
+      }
+
+      isRunning = true;
+      sessionId++;
+      currentIndex = 0;
+
+      startScreen.classList.add("hidden");
+
+      setStatus(
+        "Đã tải " + cards.length + " thẻ",
+        "Đang khởi động camera..."
+      );
+
+      await scanOneCard(sessionId);
+
+    } catch (error) {
+      console.error(error);
+
+      isRunning = false;
+      startScreen.classList.remove("hidden");
+
+      setStatus("Không thể khởi động Scanner", error.message);
+
+      startButton.disabled = false;
+      startButton.textContent = "THỬ LẠI";
+    }
+  }
+
+  // SOUND CONTROL
+  soundButton.addEventListener("click", async () => {
+    soundEnabled = !soundEnabled;
+    video.muted = !soundEnabled;
+
+    soundButton.textContent = soundEnabled
+      ? "🔊 Tắt âm thanh"
+      : "🔇 Bật âm thanh";
+
+    if (soundEnabled && videoLayer.classList.contains("show")) {
+      try {
+        await video.play();
+      } catch (error) {
+        console.warn(error);
+      }
+    }
+  });
+
+  // START BUTTON
+  startButton.addEventListener("click", startScanner);
+
+  // CLEANUP
+  window.addEventListener("beforeunload", () => {
+    clearTimers();
+
+    if (currentArSystem) {
+      try {
+        currentArSystem.stop();
+      } catch (error) {
+        console.warn(error);
+      }
+    }
+
+    video.pause();
+  });
 
 </script>
-
 </body>
 </html>
-```
