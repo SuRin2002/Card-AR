@@ -4,21 +4,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#080b12">
   <title>AR Card Scanner</title>
 
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-    body {
-      background: #080b12;
-      color: #fff;
-      font-family: Arial, sans-serif;
-      min-height: 100vh;
+    html, body {
+      width: 100%;
+      height: 100%;
       overflow: hidden;
+      background: #080b12;
+      color: white;
+      font-family: Arial, sans-serif;
     }
 
     .app {
@@ -28,18 +34,19 @@
       display: flex;
       flex-direction: column;
       position: relative;
+      overflow: hidden;
       background: #080b12;
     }
 
     header {
-      height: 64px;
+      height: 60px;
       flex-shrink: 0;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 18px;
-      border-bottom: 1px solid #202838;
+      padding: 0 16px;
       background: #101725;
+      border-bottom: 1px solid #202838;
       z-index: 10;
     }
 
@@ -49,55 +56,90 @@
       letter-spacing: 1px;
     }
 
-    .logo span { color: #40d9ff; }
+    .logo span {
+      color: #40d9ff;
+    }
 
     .sound-button {
       border: 1px solid #344258;
-      color: #fff;
+      color: white;
       background: #1b2638;
       border-radius: 20px;
       padding: 9px 14px;
       cursor: pointer;
+      font-size: 13px;
     }
 
     .camera-area {
       flex: 1;
       min-height: 0;
+      width: 100%;
       position: relative;
       overflow: hidden;
       background: #000;
+      isolation: isolate;
     }
 
-    #arContainer,
-    #arContainer a-scene {
+    /* Camera AR */
+
+    #arContainer {
       position: absolute;
       inset: 0;
       width: 100%;
       height: 100%;
+      z-index: 2;
+      background: transparent;
+      overflow: hidden;
     }
 
-    #arContainer canvas {
+    #arContainer a-scene {
+      position: absolute !important;
+      inset: 0 !important;
       width: 100% !important;
       height: 100% !important;
+      background: transparent !important;
     }
 
-    #arContainer video {
-      object-fit: cover !important;
+    #arContainer canvas,
+    #arContainer .a-canvas {
+      position: absolute !important;
+      inset: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      background: transparent !important;
+      pointer-events: none;
     }
+
+    /* Video camera do MindAR tạo ra */
+
+    #mindar-video,
+    video#mindar-video,
+    video.mindar-video {
+      position: fixed !important;
+      object-fit: cover !important;
+      display: block !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      background: #000;
+      z-index: 1 !important;
+    }
+
+    /* Khung quét */
 
     .scan-frame {
       position: absolute;
-      width: min(72vw, 330px);
-      height: min(72vw, 330px);
-      max-height: 45%;
+      width: min(76vw, 340px);
+      height: min(76vw, 340px);
+      max-height: 46%;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      border: 2px solid rgba(64, 217, 255, .8);
+      border: 2px solid rgba(64, 217, 255, .85);
       border-radius: 22px;
-      box-shadow: 0 0 25px rgba(64, 217, 255, .12);
+      box-shadow: 0 0 25px rgba(64, 217, 255, .15);
       pointer-events: none;
       z-index: 3;
+      transition: border-color .2s;
     }
 
     .corner {
@@ -108,34 +150,57 @@
       border-style: solid;
     }
 
-    .tl { top: -2px; left: -2px; border-width: 4px 0 0 4px; border-radius: 12px 0 0; }
-    .tr { top: -2px; right: -2px; border-width: 4px 4px 0 0; border-radius: 0 12px 0 0; }
-    .bl { bottom: -2px; left: -2px; border-width: 0 0 4px 4px; border-radius: 0 0 0 12px; }
-    .br { bottom: -2px; right: -2px; border-width: 0 4px 4px 0; border-radius: 0 0 12px; }
+    .tl {
+      top: -2px;
+      left: -2px;
+      border-width: 4px 0 0 4px;
+      border-radius: 12px 0 0;
+    }
+
+    .tr {
+      top: -2px;
+      right: -2px;
+      border-width: 4px 4px 0 0;
+      border-radius: 0 12px 0 0;
+    }
+
+    .bl {
+      bottom: -2px;
+      left: -2px;
+      border-width: 0 0 4px 4px;
+      border-radius: 0 0 0 12px;
+    }
+
+    .br {
+      bottom: -2px;
+      right: -2px;
+      border-width: 0 4px 4px 0;
+      border-radius: 0 0 12px;
+    }
 
     .hint {
       position: absolute;
-      top: calc(50% + min(36vw, 165px) + 25px);
+      top: calc(50% + min(38vw, 170px) + 22px);
       left: 15px;
       right: 15px;
       text-align: center;
-      color: #d5e5f4;
+      color: white;
       font-size: 14px;
       z-index: 4;
-      text-shadow: 0 2px 5px #000;
+      text-shadow: 0 2px 6px #000;
       pointer-events: none;
     }
 
     .status {
       position: absolute;
-      top: 16px;
+      top: 15px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(10, 18, 30, .85);
+      background: rgba(10, 18, 30, .88);
       border: 1px solid #304158;
       border-radius: 30px;
       padding: 9px 16px;
-      font-size: 13px;
+      font-size: 12px;
       white-space: nowrap;
       z-index: 5;
       max-width: 90%;
@@ -143,17 +208,27 @@
       text-overflow: ellipsis;
     }
 
+    /* Video card nổi trên camera */
+
     .video-layer {
       display: none;
       position: absolute;
-      inset: 0;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      width: min(88%, 420px);
+      aspect-ratio: 16 / 9;
       background: #000;
+      border: 2px solid #40d9ff;
+      border-radius: 14px;
+      overflow: hidden;
       z-index: 6;
-      align-items: center;
-      justify-content: center;
+      box-shadow: 0 5px 25px rgba(0,0,0,.5);
     }
 
-    .video-layer.show { display: flex; }
+    .video-layer.show {
+      display: flex;
+    }
 
     #arVideo {
       width: 100%;
@@ -164,11 +239,11 @@
 
     .video-name {
       position: absolute;
-      left: 14px;
-      right: 14px;
-      bottom: 18px;
+      left: 10px;
+      right: 10px;
+      bottom: 8px;
       text-align: center;
-      font-size: 15px;
+      font-size: 14px;
       color: white;
       text-shadow: 0 2px 6px #000;
       pointer-events: none;
@@ -176,12 +251,12 @@
 
     footer {
       flex-shrink: 0;
-      min-height: 76px;
-      padding: 13px 18px;
+      min-height: 70px;
+      padding: 12px 16px;
       display: flex;
       flex-direction: column;
       justify-content: center;
-      gap: 6px;
+      gap: 5px;
       background: #101725;
       border-top: 1px solid #202838;
       z-index: 10;
@@ -212,12 +287,14 @@
       gap: 16px;
     }
 
-    .start-screen h2 { font-size: 24px; }
+    .start-screen h2 {
+      font-size: 24px;
+    }
 
     .start-screen p {
       color: #9baabe;
       font-size: 14px;
-      line-height: 1.6;
+      line-height: 1.7;
     }
 
     .start-button {
@@ -237,19 +314,46 @@
       cursor: not-allowed;
     }
 
-    .hidden { display: none !important; }
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-height: 650px) {
+      header {
+        height: 48px;
+      }
+
+      footer {
+        min-height: 58px;
+      }
+
+      .scan-frame {
+        width: min(65vw, 280px);
+        height: min(65vw, 280px);
+      }
+
+      .video-layer {
+        width: min(65%, 320px);
+        bottom: 8px;
+      }
+    }
   </style>
 </head>
 
 <body>
+
 <div class="app">
 
   <header>
     <div class="logo">AR <span>CARD</span></div>
-    <button class="sound-button" id="soundButton">🔇 Bật âm thanh</button>
+
+    <button class="sound-button" id="soundButton">
+      🔇 Bật âm thanh
+    </button>
   </header>
 
   <main class="camera-area">
+
     <div id="arContainer"></div>
 
     <div class="scan-frame" id="scanFrame">
@@ -259,36 +363,58 @@
       <div class="corner br"></div>
     </div>
 
-    <div class="status" id="status">Đang tải danh sách card...</div>
+    <div class="status" id="status">
+      Đang tải danh sách card...
+    </div>
 
     <div class="hint" id="hint">
       Đưa bất kỳ card nào vào giữa khung hình
     </div>
 
+    <!-- Video card hiển thị nổi, không che camera -->
+
     <div class="video-layer" id="videoLayer">
-      <video id="arVideo" playsinline webkit-playsinline></video>
+      <video
+        id="arVideo"
+        playsinline
+        webkit-playsinline
+        preload="none"
+      ></video>
+
       <div class="video-name" id="videoName"></div>
     </div>
 
     <div class="start-screen" id="startScreen">
+
       <h2>AR Card Scanner</h2>
+
       <p>
         Hệ thống tự động nhận diện tất cả card.<br>
-        Đưa bất kỳ card nào vào trước camera.
+        Đưa bất kỳ card nào vào trước camera.<br>
+        Khi đổi card, video sẽ tự động thay đổi.
       </p>
-      <button class="start-button" id="startButton" disabled>
+
+      <button
+        class="start-button"
+        id="startButton"
+        disabled
+      >
         ĐANG TẢI CARD...
       </button>
+
     </div>
+
   </main>
 
   <footer>
     <div id="mainStatus">Đang tải dữ liệu</div>
     <div id="subStatus">Đang kết nối Firestore</div>
   </footer>
+
 </div>
 
 <script type="module">
+
 import { initializeApp } from
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
@@ -299,6 +425,11 @@ import {
 } from
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+
+/* =========================================
+   FIREBASE CONFIG
+========================================= */
+
 const firebaseConfig = {
   apiKey: "AIzaSyDFTvux73x5oAl273PN_0wzz_A1OVvh34c",
   authDomain: "ar-card-video.firebaseapp.com",
@@ -308,312 +439,725 @@ const firebaseConfig = {
   appId: "1:725938606795:web:516149f4210f26344bc14e"
 };
 
-const db = getFirestore(initializeApp(firebaseConfig));
+const db = getFirestore(
+  initializeApp(firebaseConfig)
+);
+
+
+/* =========================================
+   ELEMENTS
+========================================= */
+
 const $ = id => document.getElementById(id);
 
 const arContainer = $("arContainer");
 const video = $("arVideo");
+
 const videoLayer = $("videoLayer");
 const videoName = $("videoName");
+
 const startScreen = $("startScreen");
 const startButton = $("startButton");
+
 const statusEl = $("status");
 const mainStatus = $("mainStatus");
 const subStatus = $("subStatus");
+
 const hint = $("hint");
 const scanFrame = $("scanFrame");
 const soundButton = $("soundButton");
 
+
+/* =========================================
+   VARIABLES
+========================================= */
+
 let cards = [];
+
 let scene = null;
 let arSystem = null;
+
 let mindUrl = null;
+
 let running = false;
 let soundEnabled = false;
+
 let activeCardId = null;
+
 let videoToken = 0;
 let lostTimer = null;
 
+let foundTargets = new Set();
+
+let resizeTimer = null;
+
+
+/* =========================================
+   STATUS
+========================================= */
+
 function setStatus(message, detail = "") {
+
   statusEl.textContent = message;
+
   mainStatus.textContent = message;
+
   subStatus.textContent = detail;
+
 }
 
+
+/* =========================================
+   STOP VIDEO
+========================================= */
+
 function stopVideo() {
+
   videoToken++;
+
   clearTimeout(lostTimer);
 
   video.pause();
+
   video.onended = null;
   video.onerror = null;
   video.oncanplay = null;
+
   video.removeAttribute("src");
+
   video.load();
 
   videoLayer.classList.remove("show");
+
   videoName.textContent = "";
+
 }
 
+
+/* =========================================
+   LOAD IMAGE FOR MINDAR
+========================================= */
+
 function loadImage(url) {
+
   return new Promise((resolve, reject) => {
+
     const img = new Image();
+
     img.crossOrigin = "anonymous";
 
     img.onload = () => resolve(img);
-    img.onerror = () => reject(
-      new Error("Không tải được ảnh card. Kiểm tra imageUrl/CORS: " + url)
-    );
+
+    img.onerror = () => {
+
+      reject(
+        new Error(
+          "Không tải được ảnh card: " + url
+        )
+      );
+
+    };
 
     img.src = url;
+
   });
+
 }
 
+
+/* =========================================
+   LOAD CARDS FROM FIRESTORE
+========================================= */
+
 async function loadCards() {
-  const snapshot = await getDocs(collection(db, "cards"));
+
+  const snapshot = await getDocs(
+    collection(db, "cards")
+  );
+
   const result = [];
 
   snapshot.forEach(docSnap => {
+
     const data = docSnap.data();
 
-    const imageUrl = typeof data.imageUrl === "string"
-      ? data.imageUrl.trim() : "";
+    const imageUrl =
+      typeof data.imageUrl === "string"
+        ? data.imageUrl.trim()
+        : "";
 
-    const videoUrl = typeof data.videoUrl === "string"
-      ? data.videoUrl.trim() : "";
+    const videoUrl =
+      typeof data.videoUrl === "string"
+        ? data.videoUrl.trim()
+        : "";
 
     if (
       !imageUrl.startsWith("https://") ||
       !videoUrl.startsWith("https://")
     ) {
-      console.warn("Bỏ qua card thiếu imageUrl/videoUrl:", docSnap.id);
+
+      console.warn(
+        "Bỏ qua card thiếu imageUrl/videoUrl:",
+        docSnap.id
+      );
+
       return;
+
     }
 
     result.push({
+
       id: docSnap.id,
+
       name: data.name || "Thẻ AR",
+
       imageUrl,
+
       videoUrl
+
     });
+
   });
 
   return result;
+
 }
 
+
+/* =========================================
+   COMPILE ALL CARD IMAGES
+========================================= */
+
 async function compileAllCards() {
+
   const Compiler = window.MINDAR?.IMAGE?.Compiler;
 
   if (!Compiler) {
+
     throw new Error(
-      "Không tìm thấy MindAR Compiler. Không thể tạo bộ nhận diện chung."
+      "Không tìm thấy MindAR Compiler."
     );
+
   }
 
   const compiler = new Compiler();
+
   const images = [];
 
   for (let i = 0; i < cards.length; i++) {
+
     setStatus(
       `Đang tải ảnh ${i + 1}/${cards.length}`,
       cards[i].name
     );
 
-    images.push(await loadImage(cards[i].imageUrl));
+    images.push(
+      await loadImage(cards[i].imageUrl)
+    );
+
   }
 
-  setStatus("Đang biên dịch ảnh card...", "Vui lòng giữ trang mở");
+  setStatus(
+    "Đang biên dịch ảnh card...",
+    "Vui lòng giữ trang mở"
+  );
 
-  await compiler.compileImageTargets(images, progress => {
-    setStatus(
-      "Đang biên dịch: " + Math.round(progress) + "%",
-      cards.length + " card"
-    );
-  });
+  await compiler.compileImageTargets(
+    images,
+    progress => {
+
+      setStatus(
+        "Đang biên dịch: " +
+        Math.round(progress) + "%",
+        cards.length + " card"
+      );
+
+    }
+  );
 
   const buffer = await compiler.exportData();
 
   return URL.createObjectURL(
-    new Blob([buffer], { type: "application/octet-stream" })
+    new Blob(
+      [buffer],
+      { type: "application/octet-stream" }
+    )
   );
+
 }
+
+
+/* =========================================
+   WAIT A-FRAME
+========================================= */
 
 function waitSceneLoaded(el) {
+
   return new Promise((resolve, reject) => {
-    if (el.hasLoaded) return resolve();
+
+    if (el.hasLoaded) {
+      resolve();
+      return;
+    }
 
     const timer = setTimeout(() => {
-      reject(new Error("A-Frame khởi tạo quá thời gian."));
+
+      reject(
+        new Error(
+          "A-Frame khởi tạo quá thời gian."
+        )
+      );
+
     }, 20000);
 
-    el.addEventListener("loaded", () => {
-      clearTimeout(timer);
-      resolve();
-    }, { once: true });
+    el.addEventListener(
+      "loaded",
+      () => {
+
+        clearTimeout(timer);
+
+        resolve();
+
+      },
+      { once: true }
+    );
+
   });
+
 }
 
+
+/* =========================================
+   WAIT MINDAR CAMERA READY
+========================================= */
+
 function waitArReady(el) {
+
   return new Promise((resolve, reject) => {
+
     let done = false;
 
     const timer = setTimeout(() => {
-      finish(reject, new Error(
-        "Không nhận được tín hiệu camera. Kiểm tra quyền camera và HTTPS."
-      ));
+
+      finish(
+        reject,
+        new Error(
+          "Không nhận được tín hiệu camera. Kiểm tra quyền camera và HTTPS."
+        )
+      );
+
     }, 30000);
 
     function cleanup() {
+
       clearTimeout(timer);
+
       el.removeEventListener("arReady", ready);
+
       el.removeEventListener("arError", error);
+
     }
 
     function finish(callback, value) {
+
       if (done) return;
+
       done = true;
+
       cleanup();
+
       callback(value);
+
     }
 
     function ready() {
+
       finish(resolve);
+
     }
 
     function error(event) {
-      finish(reject, new Error(
-        event.detail?.error || "MindAR không thể khởi động camera."
-      ));
+
+      finish(
+        reject,
+        new Error(
+          event.detail?.error ||
+          "MindAR không thể khởi động camera."
+        )
+      );
+
     }
 
     el.addEventListener("arReady", ready);
+
     el.addEventListener("arError", error);
+
   });
+
 }
 
+
+/* =========================================
+   FIX CAMERA SIZE AND POSITION
+========================================= */
+
+function fixCameraLayout() {
+
+  if (!arContainer) return;
+
+  const rect = arContainer.getBoundingClientRect();
+
+  if (!rect.width || !rect.height) return;
+
+  const cameraVideos = document.querySelectorAll(
+    "video#mindar-video, video.mindar-video"
+  );
+
+  cameraVideos.forEach(cam => {
+
+    if (cam === video) return;
+
+    Object.assign(cam.style, {
+
+      position: "fixed",
+
+      left: rect.left + "px",
+
+      top: rect.top + "px",
+
+      width: rect.width + "px",
+
+      height: rect.height + "px",
+
+      maxWidth: "none",
+
+      maxHeight: "none",
+
+      objectFit: "cover",
+
+      display: "block",
+
+      opacity: "1",
+
+      visibility: "visible",
+
+      zIndex: "1"
+
+    });
+
+  });
+
+}
+
+
+/* =========================================
+   PLAY SELECTED CARD
+========================================= */
+
 async function playCard(card) {
-  if (!running || activeCardId !== card.id) return;
+
+  if (
+    !running ||
+    activeCardId !== card.id
+  ) {
+    return;
+  }
+
+  // Tạo mã phiên phát mới.
+  // Mã này giúp video cũ không ghi đè video mới.
 
   const token = ++videoToken;
 
+  // Dừng nội dung video trước đó
+
   video.pause();
+
+  video.onended = null;
+  video.onerror = null;
+  video.oncanplay = null;
+
   video.removeAttribute("src");
+
   video.load();
 
+  // Gán video mới
+
   video.src = card.videoUrl;
+
   video.muted = !soundEnabled;
+
   video.loop = false;
+
   video.playsInline = true;
+
+  video.setAttribute("playsinline", "");
+
+  video.setAttribute("webkit-playsinline", "");
 
   videoName.textContent = card.name;
 
   videoLayer.classList.add("show");
 
+  // Xử lý lỗi video
+
   video.onerror = () => {
+
     if (token !== videoToken) return;
+
+    if (activeCardId !== card.id) return;
 
     videoLayer.classList.remove("show");
-    setStatus("Không tải được video", "Kiểm tra videoUrl trong Admin");
+
+    setStatus(
+      "Không tải được video",
+      "Kiểm tra videoUrl trong Firestore"
+    );
+
   };
 
+  // Video phát xong
+
   video.onended = () => {
+
     if (token !== videoToken) return;
-    setStatus("Video đã phát xong", "Giữ card trước camera để quét");
+
+    setStatus(
+      "Video đã phát xong",
+      "Đưa card khác vào để xem video tiếp theo"
+    );
+
   };
 
   try {
+
     await video.play();
 
-    if (token !== videoToken || !running) {
-      video.pause();
+    // Không can thiệp video nếu một card khác
+    // đã được nhận diện trong lúc chờ phát.
+
+    if (
+      token !== videoToken ||
+      activeCardId !== card.id ||
+      !running
+    ) {
       return;
     }
 
-    setStatus("Đã nhận diện: " + card.name, "Đang phát video");
-  } catch (error) {
-    if (token !== videoToken) return;
-
-    console.warn("Không tự phát được video:", error);
     setStatus(
       "Đã nhận diện: " + card.name,
-      "Trình duyệt chặn tự phát video có âm thanh"
+      "Đang phát video tương ứng"
     );
-  }
-}
 
-function createTargetEvents(target, card) {
-  target.addEventListener("targetFound", () => {
-    if (!running) return;
+  } catch (error) {
 
-    clearTimeout(lostTimer);
+    if (token !== videoToken) return;
 
-    if (activeCardId === card.id) return;
-
-    // Nếu đang nhận diện card khác, không đổi video liên tục.
-    if (activeCardId !== null) return;
-
-    activeCardId = card.id;
-
-    scanFrame.style.borderColor = "#35e58b";
-    hint.textContent = "Đã nhận diện: " + card.name;
-
-    playCard(card);
-  });
-
-  target.addEventListener("targetLost", () => {
     if (activeCardId !== card.id) return;
 
-    // Chờ một chút để tránh mất dấu thoáng qua làm video bị ngắt.
-    clearTimeout(lostTimer);
+    console.warn(
+      "Không thể phát video:",
+      error
+    );
 
-    lostTimer = setTimeout(() => {
-      if (activeCardId !== card.id) return;
+    setStatus(
+      "Đã nhận diện: " + card.name,
+      "Không thể tự động phát video"
+    );
 
-      activeCardId = null;
-      stopVideo();
+  }
 
-      scanFrame.style.borderColor = "rgba(64, 217, 255, .8)";
-      hint.textContent = "Đưa card tiếp theo vào khung hình";
-
-      setStatus("Đang tìm card...", "Đưa bất kỳ card nào vào camera");
-    }, 700);
-  });
 }
 
+
+/* =========================================
+   ACTIVATE CARD
+========================================= */
+
+function activateCard(card) {
+
+  if (!running) return;
+
+  if (activeCardId === card.id) return;
+
+  clearTimeout(lostTimer);
+
+  activeCardId = card.id;
+
+  scanFrame.style.borderColor = "#35e58b";
+
+  hint.textContent =
+    "Đã nhận diện: " + card.name;
+
+  // Chuyển sang video card mới
+
+  playCard(card);
+
+}
+
+
+/* =========================================
+   TARGET EVENTS
+========================================= */
+
+function createTargetEvents(target, card) {
+
+  target.addEventListener(
+    "targetFound",
+    () => {
+
+      if (!running) return;
+
+      clearTimeout(lostTimer);
+
+      foundTargets.add(card.id);
+
+      // Cho phép chuyển card ngay cả khi
+      // card trước đó chưa phát hiện targetLost.
+
+      activateCard(card);
+
+    }
+  );
+
+
+  target.addEventListener(
+    "targetLost",
+    () => {
+
+      foundTargets.delete(card.id);
+
+      // Không để card cũ tác động đến card mới
+
+      if (activeCardId !== card.id) return;
+
+      clearTimeout(lostTimer);
+
+      // Đợi ngắn để tránh mất tracking tạm thời
+
+      lostTimer = setTimeout(() => {
+
+        if (!running) return;
+
+        // Nếu card cũ đã được nhận diện lại
+
+        if (foundTargets.has(card.id)) return;
+
+        // Nếu active card đã đổi
+
+        if (activeCardId !== card.id) return;
+
+        // Tìm card khác vẫn đang được nhận diện
+
+        const nextCard = cards.find(
+          item => foundTargets.has(item.id)
+        );
+
+        if (nextCard) {
+
+          activateCard(nextCard);
+
+          return;
+
+        }
+
+        // Không còn card nào trong camera
+
+        activeCardId = null;
+
+        stopVideo();
+
+        scanFrame.style.borderColor =
+          "rgba(64, 217, 255, .85)";
+
+        hint.textContent =
+          "Đưa card tiếp theo vào khung hình";
+
+        setStatus(
+          "Đang tìm card...",
+          "Đưa bất kỳ card nào vào camera"
+        );
+
+      }, 600);
+
+    }
+  );
+
+}
+
+
+/* =========================================
+   CREATE MINDAR SCANNER
+========================================= */
+
 async function createScanner() {
+
   scene = document.createElement("a-scene");
 
-  scene.setAttribute("mindar-image", [
-    "imageTargetSrc: " + mindUrl,
-    "autoStart: false",
-    "uiLoading: false",
-    "uiError: false",
-    "uiScanning: false",
-    "maxTrack: 1"
-  ].join("; ") + ";");
+  scene.setAttribute(
+    "mindar-image",
+    [
+      "imageTargetSrc: " + mindUrl,
+      "autoStart: false",
+      "uiLoading: no",
+      "uiError: no",
+      "uiScanning: no",
+      "maxTrack: 1"
+    ].join("; ") + ";"
+  );
 
   scene.setAttribute("embedded", "");
+
   scene.setAttribute("color-space", "sRGB");
+
   scene.setAttribute(
     "renderer",
-    "colorManagement: true; physicallyCorrectLights: true; alpha: true"
+    "colorManagement: true; alpha: true; antialias: true"
   );
-  scene.setAttribute("vr-mode-ui", "enabled: false");
-  scene.setAttribute("device-orientation-permission-ui", "enabled: false");
+
+  scene.setAttribute(
+    "vr-mode-ui",
+    "enabled: false"
+  );
+
+  scene.setAttribute(
+    "device-orientation-permission-ui",
+    "enabled: false"
+  );
 
   Object.assign(scene.style, {
+
     position: "absolute",
+
     inset: "0",
+
     width: "100%",
-    height: "100%"
+
+    height: "100%",
+
+    background: "transparent"
+
   });
 
+  // Camera A-Frame
+
   const camera = document.createElement("a-camera");
-  camera.setAttribute("position", "0 0 0");
-  camera.setAttribute("look-controls", "enabled: false");
+
+  camera.setAttribute(
+    "position",
+    "0 0 0"
+  );
+
+  camera.setAttribute(
+    "look-controls",
+    "enabled: false"
+  );
+
   scene.appendChild(camera);
 
+  // Tạo target cho toàn bộ card
+
   cards.forEach((card, index) => {
+
     const target = document.createElement("a-entity");
 
     target.setAttribute(
@@ -622,7 +1166,9 @@ async function createScanner() {
     );
 
     createTargetEvents(target, card);
+
     scene.appendChild(target);
+
   });
 
   arContainer.replaceChildren(scene);
@@ -632,34 +1178,76 @@ async function createScanner() {
   arSystem = scene.systems["mindar-image-system"];
 
   if (!arSystem) {
-    throw new Error("Không tìm thấy MindAR system.");
+
+    throw new Error(
+      "Không tìm thấy MindAR system."
+    );
+
   }
+
+  // Đăng ký chờ camera trước khi start
 
   const readyPromise = waitArReady(scene);
 
-  await arSystem.start();
-  await readyPromise;
+  // Khởi động MindAR
+
+  await Promise.all([
+    arSystem.start(),
+    readyPromise
+  ]);
+
+  // Điều chỉnh camera sau khi khởi động
+
+  fixCameraLayout();
+
+  setTimeout(fixCameraLayout, 300);
+
+  setTimeout(fixCameraLayout, 1000);
+
 }
 
+
+/* =========================================
+   START SCANNER
+========================================= */
+
 async function startScanner() {
+
   if (running) return;
 
   startButton.disabled = true;
-  startButton.textContent = "ĐANG MỞ CAMERA...";
+
+  startButton.textContent =
+    "ĐANG MỞ CAMERA...";
 
   try {
+
     if (!mindUrl || !cards.length) {
-      throw new Error("Chưa có bộ nhận diện card.");
+
+      throw new Error(
+        "Chưa có bộ nhận diện card."
+      );
+
     }
 
     stopVideo();
+
     activeCardId = null;
 
-    setStatus("Đang mở camera...", "Vui lòng cho phép truy cập camera");
+    foundTargets.clear();
+
+    running = true;
+
+    scanFrame.style.borderColor =
+      "rgba(64, 217, 255, .85)";
+
+    setStatus(
+      "Đang mở camera...",
+      "Vui lòng cho phép truy cập camera"
+    );
 
     await createScanner();
 
-    running = true;
     startScreen.classList.add("hidden");
 
     setStatus(
@@ -667,62 +1255,173 @@ async function startScanner() {
       "Đưa bất kỳ card nào vào giữa khung hình"
     );
 
-    hint.textContent = "Đưa card vào giữa khung hình";
+    hint.textContent =
+      "Đưa card vào giữa khung hình";
 
   } catch (error) {
-    console.error("Scanner error:", error);
+
+    console.error(
+      "Scanner error:",
+      error
+    );
 
     running = false;
 
+    activeCardId = null;
+
+    foundTargets.clear();
+
+    stopVideo();
+
     if (arSystem) {
-      try { await arSystem.stop(); } catch (e) {
+
+      try {
+
+        await arSystem.stop();
+
+      } catch (e) {
+
         console.warn(e);
+
       }
+
     }
 
-    if (scene) scene.remove();
+    if (scene) {
+
+      scene.remove();
+
+    }
 
     scene = null;
+
     arSystem = null;
 
-    setStatus("Không khởi động được Scanner", error.message);
+    setStatus(
+      "Không khởi động được Scanner",
+      error.message
+    );
+
     startScreen.classList.remove("hidden");
 
   } finally {
+
     startButton.disabled = false;
-    startButton.textContent = "BẮT ĐẦU QUÉT";
+
+    startButton.textContent =
+      "BẮT ĐẦU QUÉT";
+
   }
+
 }
 
-soundButton.addEventListener("click", async () => {
-  soundEnabled = !soundEnabled;
-  video.muted = !soundEnabled;
 
-  soundButton.textContent = soundEnabled
-    ? "🔊 Tắt âm thanh"
-    : "🔇 Bật âm thanh";
+/* =========================================
+   SOUND BUTTON
+========================================= */
 
-  if (soundEnabled && videoLayer.classList.contains("show")) {
-    try {
-      await video.play();
-    } catch (error) {
-      console.warn(error);
+soundButton.addEventListener(
+  "click",
+  async () => {
+
+    soundEnabled = !soundEnabled;
+
+    video.muted = !soundEnabled;
+
+    soundButton.textContent = soundEnabled
+      ? "🔊 Tắt âm thanh"
+      : "🔇 Bật âm thanh";
+
+    if (
+      soundEnabled &&
+      videoLayer.classList.contains("show") &&
+      activeCardId !== null
+    ) {
+
+      try {
+
+        await video.play();
+
+      } catch (error) {
+
+        console.warn(
+          "Không bật được âm thanh:",
+          error
+        );
+
+      }
+
     }
-  }
-});
 
-startButton.addEventListener("click", startScanner);
+  }
+);
+
+
+/* =========================================
+   START BUTTON
+========================================= */
+
+startButton.addEventListener(
+  "click",
+  startScanner
+);
+
+
+/* =========================================
+   CAMERA RESIZE
+========================================= */
+
+function handleResize() {
+
+  clearTimeout(resizeTimer);
+
+  resizeTimer = setTimeout(() => {
+
+    fixCameraLayout();
+
+  }, 250);
+
+}
+
+window.addEventListener(
+  "resize",
+  handleResize
+);
+
+window.addEventListener(
+  "orientationchange",
+  () => {
+
+    setTimeout(
+      fixCameraLayout,
+      500
+    );
+
+  }
+);
+
+
+/* =========================================
+   INITIALIZE
+========================================= */
 
 async function initializeScanner() {
+
   try {
-    setStatus("Đang tải danh sách card...", "Đang kết nối Firestore");
+
+    setStatus(
+      "Đang tải danh sách card...",
+      "Đang kết nối Firestore"
+    );
 
     cards = await loadCards();
 
     if (!cards.length) {
+
       throw new Error(
         "Không có card hợp lệ. Kiểm tra imageUrl và videoUrl trong Admin."
       );
+
     }
 
     setStatus(
@@ -730,42 +1429,92 @@ async function initializeScanner() {
       "Đang chuẩn bị bộ nhận diện"
     );
 
+    // Biên dịch toàn bộ ảnh card
+
     mindUrl = await compileAllCards();
 
     startButton.disabled = false;
-    startButton.textContent = "BẮT ĐẦU QUÉT";
+
+    startButton.textContent =
+      "BẮT ĐẦU QUÉT";
 
     setStatus(
       "Đã chuẩn bị " + cards.length + " card",
       "Nhấn BẮT ĐẦU QUÉT để mở camera"
     );
 
-    hint.textContent = "Đưa bất kỳ card nào vào giữa khung hình";
+    hint.textContent =
+      "Đưa bất kỳ card nào vào giữa khung hình";
 
   } catch (error) {
-    console.error("Lỗi chuẩn bị Scanner:", error);
 
-    setStatus("Lỗi chuẩn bị Scanner", error.message);
+    console.error(
+      "Lỗi chuẩn bị Scanner:",
+      error
+    );
+
+    setStatus(
+      "Lỗi chuẩn bị Scanner",
+      error.message
+    );
 
     startButton.disabled = true;
-    startButton.textContent = "LỖI TẢI CARD";
+
+    startButton.textContent =
+      "LỖI TẢI CARD";
+
   }
+
 }
 
-window.addEventListener("beforeunload", () => {
-  running = false;
-  stopVideo();
 
-  if (arSystem) {
-    try { arSystem.stop(); } catch (error) {
-      console.warn(error);
+/* =========================================
+   CLEANUP
+========================================= */
+
+window.addEventListener(
+  "beforeunload",
+  () => {
+
+    running = false;
+
+    activeCardId = null;
+
+    foundTargets.clear();
+
+    stopVideo();
+
+    if (arSystem) {
+
+      try {
+
+        arSystem.stop();
+
+      } catch (error) {
+
+        console.warn(error);
+
+      }
+
     }
-  }
 
-  if (mindUrl) URL.revokeObjectURL(mindUrl);
-});
+    if (mindUrl) {
+
+      URL.revokeObjectURL(mindUrl);
+
+    }
+
+  }
+);
+
+
+/* =========================================
+   RUN
+========================================= */
 
 initializeScanner();
+
 </script>
+
 </body>
 </html>
