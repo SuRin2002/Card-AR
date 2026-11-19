@@ -1,0 +1,317 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin AR Card</title>
+
+<style>
+body {
+  font-family: Arial;
+  max-width: 760px;
+  margin: 25px auto;
+  padding: 0 15px;
+  background: #f4f6fa;
+}
+
+.box {
+  background: white;
+  padding: 20px;
+  margin-bottom: 18px;
+  border-radius: 12px;
+}
+
+label {
+  display: block;
+  font-weight: bold;
+  margin: 12px 0 6px;
+}
+
+input {
+  width: 100%;
+  padding: 11px;
+  box-sizing: border-box;
+}
+
+button {
+  padding: 11px 16px;
+  margin-top: 12px;
+  border: 0;
+  border-radius: 7px;
+  background: #111827;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: .5;
+}
+
+#status, #loginStatus {
+  margin-top: 12px;
+  white-space: pre-wrap;
+}
+
+.item {
+  padding: 12px 0;
+  border-bottom: 1px solid #ddd;
+}
+</style>
+</head>
+
+<body>
+
+<p><a href="/">← Trang quét AR</a></p>
+
+<div class="box" id="loginBox">
+  <h2>Đăng nhập Admin</h2>
+
+  <label>Email</label>
+  <input id="email" type="email">
+
+  <label>Mật khẩu</label>
+  <input id="password" type="password">
+
+  <button id="loginBtn">Đăng nhập</button>
+  <div id="loginStatus"></div>
+</div>
+
+<div id="adminArea" style="display:none">
+
+  <div class="box">
+    <h2>Thêm Card AR</h2>
+
+    <label>Tên card</label>
+    <input id="cardName" type="text">
+
+    <label>Ảnh gốc của card</label>
+    <input id="imageFile" type="file" accept="image/*">
+
+    <label>File nhận diện .mind</label>
+    <input id="mindFile" type="file" accept=".mind">
+
+    <label>Link video Cloudinary</label>
+    <input
+      id="videoUrl"
+      type="url"
+      value="https://res.cloudinary.com/cjhppbjd/video/upload/v1795052758/video.mp4"
+    >
+
+    <label>Tỉ lệ chiều cao / chiều rộng</label>
+    <input id="ratio" type="number" value="1.54" step="0.01">
+
+    <button id="saveBtn">Tải lên và lưu card</button>
+
+    <div id="status"></div>
+  </div>
+
+  <div class="box">
+    <h3>Danh sách card</h3>
+    <div id="cardList"></div>
+    <button id="logoutBtn">Đăng xuất</button>
+  </div>
+
+</div>
+
+<script type="module">
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  deleteDoc,
+  doc,
+  query,
+  orderBy,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDFTvux73x5oAl273PN_0wzz_A1OVvh34c",
+  authDomain: "ar-card-video.firebaseapp.com",
+  projectId: "ar-card-video",
+  storageBucket: "ar-card-video.firebasestorage.app",
+  messagingSenderId: "725938606795",
+  appId: "1:725938606795:web:516149f4210f26344bc14e"
+};
+
+const CLOUD_NAME = "cjhppbjd";
+const UPLOAD_PRESET = "ml_default";
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+const $ = id => document.getElementById(id);
+
+function message(text, error = false) {
+  $("status").textContent = text;
+  $("status").style.color = error ? "red" : "green";
+}
+
+async function uploadCloudinary(file, type) {
+  const url =
+    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${type}/upload`;
+
+  const form = new FormData();
+  form.append("file", file);
+  form.append("upload_preset", UPLOAD_PRESET);
+
+  const response = await fetch(url, {
+    method: "POST",
+    body: form
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error?.message || "Cloudinary upload lỗi");
+  }
+
+  if (!data.secure_url) {
+    throw new Error("Không nhận được Secure URL từ Cloudinary.");
+  }
+
+  return data.secure_url;
+}
+
+$("loginBtn").addEventListener("click", async () => {
+  try {
+    await signInWithEmailAndPassword(
+      auth,
+      $("email").value.trim(),
+      $("password").value
+    );
+  } catch (error) {
+    $("loginStatus").textContent = error.message;
+  }
+});
+
+$("logoutBtn").addEventListener("click", () => signOut(auth));
+
+onAuthStateChanged(auth, user => {
+  $("loginBox").style.display = user ? "none" : "block";
+  $("adminArea").style.display = user ? "block" : "none";
+
+  if (user) loadCards();
+});
+
+async function loadCards() {
+  try {
+    const q = query(
+      collection(db, "cards"),
+      orderBy("createdAt", "desc")
+    );
+
+    const snap = await getDocs(q);
+    const list = $("cardList");
+    list.replaceChildren();
+
+    if (snap.empty) {
+      list.textContent = "Chưa có card.";
+      return;
+    }
+
+    snap.forEach(item => {
+      const data = item.data();
+      const row = document.createElement("div");
+      row.className = "item";
+
+      const name = document.createElement("strong");
+      name.textContent = data.name || "Card";
+
+      const remove = document.createElement("button");
+      remove.textContent = "Xóa";
+
+      remove.addEventListener("click", async () => {
+        if (!confirm("Xóa card này khỏi Firestore?")) return;
+
+        try {
+          await deleteDoc(doc(db, "cards", item.id));
+          await loadCards();
+        } catch (error) {
+          message(error.message, true);
+        }
+      });
+
+      row.append(name, document.createElement("br"), remove);
+      list.append(row);
+    });
+
+  } catch (error) {
+    $("cardList").textContent = error.message;
+  }
+}
+
+$("saveBtn").addEventListener("click", async () => {
+  const name = $("cardName").value.trim();
+  const image = $("imageFile").files[0];
+  const mind = $("mindFile").files[0];
+  const videoUrl = $("videoUrl").value.trim();
+  const ratio = Number($("ratio").value) || 1.54;
+
+  if (!name || !image || !mind || !videoUrl) {
+    message("Nhập tên, chọn ảnh, file .mind và link video.", true);
+    return;
+  }
+
+  try {
+    new URL(videoUrl);
+    if (!videoUrl.startsWith("https://")) throw new Error();
+  } catch {
+    message("Link video phải là URL HTTPS hợp lệ.", true);
+    return;
+  }
+
+  const btn = $("saveBtn");
+  btn.disabled = true;
+
+  try {
+    message("1/3 Đang tải ảnh lên Cloudinary...");
+    const imageUrl = await uploadCloudinary(image, "image");
+
+    message("2/3 Đang tải file .mind lên Cloudinary...");
+    const mindUrl = await uploadCloudinary(mind, "raw");
+
+    message("3/3 Đang lưu thông tin vào Firestore...");
+
+    await addDoc(collection(db, "cards"), {
+      name,
+      imageUrl,
+      mindUrl,
+      videoUrl,
+      ratio,
+      createdAt: serverTimestamp()
+    });
+
+    message("Đã lưu card thành công!");
+
+    $("cardName").value = "";
+    $("imageFile").value = "";
+    $("mindFile").value = "";
+
+    await loadCards();
+
+  } catch (error) {
+    console.error(error);
+    message("Lỗi: " + error.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+
+</body>
+</html>
