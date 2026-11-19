@@ -104,7 +104,7 @@
         type="button"
         class="px-3.5 py-2 rounded-full text-xs sm:text-sm font-medium bg-slate-800/90 hover:bg-slate-700 text-white border border-slate-700 transition cursor-pointer"
       >
-        🔇 Tắt tiếng
+        🔊 Đang bật tiếng
       </button>
     </header>
 
@@ -210,7 +210,9 @@
     let mediaStream = null;
     let scanIntervalId = null;
     let scannerActive = false;
-    let soundMuted = true;
+    // Người dùng muốn bật tiếng mặc định (chỉ tạm tắt nếu trình duyệt khóa autoplay trước khi chạm)
+    let soundMuted = false;
+    let userUnlockedAudio = false;
     let activeCardId = null;
     let activeVideoEl = videoSlotA;
     let standbyVideoEl = videoSlotB;
@@ -219,25 +221,30 @@
     let candidateCardId = null;
     let candidateHits = 0;
 
-    let tiltX = 0;
-    let tiltY = 0;
-    let shiftX = 0;
-    let shiftY = 0;
-    let scale3D = 1;
-    let prevFrameVec = null;
-
-    // Siết chặt ngưỡng khớp để không nhận bừa hình lạ / nền trống
     const MATCH_THRESHOLD = 0.78;
     const RELEASE_THRESHOLD = 0.66;
     const MIN_MARGIN_OVER_SECOND = 0.06;
     const REQUIRED_HITS = 2;
     const MAX_MISS_FRAMES = 3;
 
+    function syncAudioStateToSlots(forceUnmute = false) {
+      if (forceUnmute) {
+        soundMuted = false;
+        userUnlockedAudio = true;
+      }
+      for (const el of [videoSlotA, videoSlotB]) {
+        el.muted = soundMuted;
+        el.defaultMuted = soundMuted;
+        el.volume = 1.0;
+      }
+      soundButton.textContent = soundMuted ? "🔇 Bật tiếng" : "🔊 Đang bật tiếng";
+    }
+
     function updateStatus(primary, secondary = "") {
       if (activeCardId) {
-        topStatusPill.textContent = "AR LIVE";
+        topStatusPill.textContent = activeVideoEl.muted ? "AR LIVE · CHẠM MỞ TIẾNG" : "AR LIVE · 🔊";
         mainStatus.textContent = "AR LIVE";
-        subStatus.textContent = "";
+        subStatus.textContent = activeVideoEl.muted ? "Chạm màn hình để bật âm thanh" : "";
         return;
       }
       topStatusPill.textContent = primary;
@@ -245,7 +252,7 @@
       subStatus.textContent = secondary;
     }
 
-    function applyCardRatioAndPose(ratio = 1.54, tx = 0, ty = 0, sx = 0, sy = 0, sc = 1) {
+    function applyCardRatioAndPose(ratio = 1.54) {
       const safeRatio = Number(ratio) > 0.2 && Number(ratio) < 4 ? Number(ratio) : 1.54;
       const baseWidth = Math.min(window.innerWidth * 0.56, 224);
       let width = baseWidth;
@@ -259,8 +266,7 @@
 
       scanFrame.style.width = `${Math.round(width)}px`;
       scanFrame.style.height = `${Math.round(height)}px`;
-      scanFrame.style.transform =
-        `translate(-50%, -50%) translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0px) scale(${sc.toFixed(3)}) rotateX(${tx.toFixed(1)}deg) rotateY(${ty.toFixed(1)}deg)`;
+      scanFrame.style.transform = "translate(-50%, -50%)";
     }
 
     function normalizeVector(arr, weight = 1.0) {
@@ -298,7 +304,6 @@
         }
 
         const meanLuma = (0.299 * sumR + 0.587 * sumG + 0.114 * sumB) / pixelCount;
-        // Bỏ qua vùng quá tối hoặc gần như trắng/phẳng trơn không có chi tiết card
         if (meanLuma < 22 || meanLuma > 245) return null;
         const stdLuma = Math.sqrt(Math.max(0, sumSqLuma / pixelCount - meanLuma * meanLuma));
         if (stdLuma < 14) return null;
@@ -502,18 +507,13 @@
       candidateCardId = null;
       candidateHits = 0;
       missCount = 0;
-      tiltX = 0;
-      tiltY = 0;
-      shiftX = 0;
-      shiftY = 0;
-      scale3D = 1;
 
       clearVideoSlot(videoSlotA);
       clearVideoSlot(videoSlotB);
 
       cardOverlay.classList.add("hidden");
       scanFrame.classList.remove("matched");
-      applyCardRatioAndPose(1.54, 0, 0, 0, 0, 1);
+      applyCardRatioAndPose(1.54);
       updateStatus(statusMsg, detailMsg);
     }
 
@@ -522,7 +522,7 @@
       activeCardId = card.id;
       missCount = 0;
 
-      applyCardRatioAndPose(card.ratio, tiltX, tiltY, shiftX, shiftY, scale3D);
+      applyCardRatioAndPose(card.ratio);
       scanFrame.classList.add("matched");
       cardOverlay.classList.remove("hidden");
 
@@ -533,6 +533,8 @@
       nextVideo.onerror = null;
       nextVideo.src = card.videoUrl;
       nextVideo.muted = soundMuted;
+      nextVideo.defaultMuted = soundMuted;
+      nextVideo.volume = 1.0;
       nextVideo.loop = true;
       nextVideo.playsInline = true;
       nextVideo.load();
@@ -542,13 +544,7 @@
         stopAndHideCardVideo("Đang quét...", "");
       };
 
-      try {
-        await nextVideo.play();
-        if (token !== playRequestToken || activeCardId !== card.id) {
-          nextVideo.pause();
-          return;
-        }
-
+      const activateSlot = () => {
         nextVideo.classList.remove("standby");
         nextVideo.classList.add("active");
 
@@ -558,24 +554,28 @@
 
         activeVideoEl = nextVideo;
         standbyVideoEl = prevVideo;
+      };
 
+      try {
+        await nextVideo.play();
+        if (token !== playRequestToken || activeCardId !== card.id) {
+          nextVideo.pause();
+          return;
+        }
+        if (!soundMuted) {
+          nextVideo.muted = false;
+          nextVideo.volume = 1.0;
+        }
+        activateSlot();
         updateStatus("AR LIVE", "");
       } catch (err) {
         if (token !== playRequestToken) return;
-        console.warn("Trình duyệt chặn tự phát có tiếng:", err);
+        console.warn("Trình duyệt chặn tự phát có tiếng, đang phát tạm tắt tiếng chờ chạm màn hình:", err);
         nextVideo.muted = true;
-        soundMuted = true;
-        soundButton.textContent = "🔇 Tắt tiếng";
         try {
           await nextVideo.play();
-          nextVideo.classList.remove("standby");
-          nextVideo.classList.add("active");
-          prevVideo.classList.remove("active");
-          prevVideo.classList.add("standby");
-          prevVideo.pause();
-          activeVideoEl = nextVideo;
-          standbyVideoEl = prevVideo;
-          updateStatus("AR LIVE", "");
+          activateSlot();
+          updateStatus("AR LIVE", "Chạm màn hình để bật âm thanh");
         } catch {
           stopAndHideCardVideo("Đang quét...", "");
         }
@@ -607,30 +607,6 @@
       return buildImageDescriptor(cameraFeed, sx, sy, sw, sh);
     }
 
-    function update3DPoseFromDiff(currVec) {
-      if (!prevFrameVec || !currVec) {
-        prevFrameVec = currVec;
-        return;
-      }
-
-      const diff = 1 - computeSimilarity(currVec, prevFrameVec);
-      prevFrameVec = currVec;
-
-      const clamped = Math.max(0, Math.min(0.45, diff));
-      const wave = Date.now() * 0.0045;
-      const targetTiltY = Math.sin(wave) * 12 + (clamped - 0.14) * 24;
-      const targetTiltX = Math.cos(wave * 0.8) * 9 - (clamped - 0.14) * 14;
-      const targetShiftX = Math.sin(wave) * clamped * 22;
-      const targetShiftY = Math.cos(wave * 0.9) * clamped * 16;
-      const targetScale = 1 + Math.min(0.06, clamped * 0.14);
-
-      tiltX += (targetTiltX - tiltX) * 0.42;
-      tiltY += (targetTiltY - tiltY) * 0.42;
-      shiftX += (targetShiftX - shiftX) * 0.42;
-      shiftY += (targetShiftY - shiftY) * 0.42;
-      scale3D += (targetScale - scale3D) * 0.42;
-    }
-
     function startScanLoop() {
       clearInterval(scanIntervalId);
       let tick = 0;
@@ -658,9 +634,6 @@
           }
           return;
         }
-
-        const primaryVec = frameDesc || wideDesc;
-        update3DPoseFromDiff(primaryVec);
 
         const loadedCards = cards.filter((c) => Boolean(c.descriptors?.length));
         if (!loadedCards.length) {
@@ -707,7 +680,7 @@
 
           missCount = 0;
           if (activeCardObj) {
-            applyCardRatioAndPose(activeCardObj.ratio, tiltX, tiltY, shiftX, shiftY, scale3D);
+            applyCardRatioAndPose(activeCardObj.ratio);
           }
 
           if (isConfidentMatch && bestCard.id !== activeCardId) {
@@ -811,37 +784,50 @@
       }
     }
 
-    soundButton.addEventListener("click", async () => {
-      soundMuted = !soundMuted;
-      videoSlotA.muted = soundMuted;
-      videoSlotB.muted = soundMuted;
-      soundButton.textContent = soundMuted ? "🔇 Tắt tiếng" : "🔊 Bật tiếng";
-
-      if (!soundMuted && !cardOverlay.classList.contains("hidden") && activeVideoEl.paused) {
+    async function unlockAndPlayAudio() {
+      syncAudioStateToSlots(true);
+      if (!cardOverlay.classList.contains("hidden") && activeVideoEl.src) {
         try {
+          activeVideoEl.muted = false;
+          activeVideoEl.volume = 1.0;
           await activeVideoEl.play();
         } catch (err) {
-          console.warn(err);
+          console.warn("Không thể phát có tiếng:", err);
         }
+      }
+      if (activeCardId) {
+        updateStatus("AR LIVE", "");
+      }
+    }
+
+    soundButton.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!userUnlockedAudio || soundMuted) {
+        await unlockAndPlayAudio();
+      } else {
+        soundMuted = true;
+        syncAudioStateToSlots(false);
+        if (activeCardId) updateStatus("AR LIVE", "");
       }
     });
 
-    cardOverlay.addEventListener("click", async () => {
-      if (activeVideoEl.paused && activeVideoEl.src) {
+    // Mở tiếng ngay khi người dùng chạm vào bất kỳ đâu trên trang (nếu trước đó bị trình duyệt khóa autoplay)
+    document.addEventListener("pointerdown", async () => {
+      if (!userUnlockedAudio || soundMuted) {
+        await unlockAndPlayAudio();
+      } else if (!cardOverlay.classList.contains("hidden") && activeVideoEl.paused && activeVideoEl.src) {
         try {
           await activeVideoEl.play();
-        } catch (err) {
-          console.warn(err);
-        }
+        } catch {}
       }
-    });
+    }, { passive: true });
 
     retryCameraButton.addEventListener("click", startScanner);
 
     window.addEventListener("resize", () => {
       if (activeCardId) {
         const c = cards.find((item) => item.id === activeCardId);
-        if (c) applyCardRatioAndPose(c.ratio, tiltX, tiltY, shiftX, shiftY, scale3D);
+        if (c) applyCardRatioAndPose(c.ratio);
       }
     });
 
@@ -853,6 +839,7 @@
       }
     });
 
+    syncAudioStateToSlots(false);
     startScanner();
   </script>
 </body>
