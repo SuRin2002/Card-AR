@@ -39,9 +39,8 @@
       left: 50%;
       width: min(56vw, 220px);
       height: min(86vw, 338px);
-      transform: translate(-50%, -50%) translate3d(0px, 0px, 0px) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+      transform: translate(-50%, -50%);
       transform-origin: center center;
-      transform-style: preserve-3d;
       will-change: transform, width, height;
       transition: width 0.14s ease-out, height 0.14s ease-out, border-color 0.18s ease, box-shadow 0.18s ease;
       box-shadow: none;
@@ -110,10 +109,8 @@
 
     <!-- Vùng Camera chính -->
     <main class="camera-stage relative flex-1 min-h-0 bg-black overflow-hidden">
-      <!-- Luồng camera trực tiếp full vùng nhìn -->
       <video id="cameraFeed" autoplay playsinline webkit-playsinline muted></video>
 
-      <!-- Thanh trạng thái nổi phía trên -->
       <div
         id="topStatusPill"
         class="absolute top-3.5 left-1/2 -translate-x-1/2 z-20 max-w-[92%] px-4 py-2 rounded-full bg-[#0a121e]/85 border border-slate-700/80 text-xs sm:text-sm text-slate-100 truncate backdrop-blur-sm"
@@ -121,12 +118,11 @@
         Đang mở camera...
       </div>
 
-      <!-- Khung 3D khớp tỉ lệ card + video phát trực tiếp trên mặt card -->
+      <!-- Khung khớp tỉ lệ card + video phát trực tiếp trên mặt card -->
       <div
         id="scanFrame"
         class="card-anchor rounded-xl border border-cyan-300/75 z-10 overflow-hidden pointer-events-none"
       >
-        <!-- Bốn góc định vị mảnh gọn sát mép card -->
         <div class="absolute top-0 left-0 w-4 h-4 border-t-[3px] border-l-[3px] border-cyan-300 rounded-tl-lg z-20 pointer-events-none"></div>
         <div class="absolute top-0 right-0 w-4 h-4 border-t-[3px] border-r-[3px] border-cyan-300 rounded-tr-lg z-20 pointer-events-none"></div>
         <div class="absolute bottom-0 left-0 w-4 h-4 border-b-[3px] border-l-[3px] border-cyan-300 rounded-bl-lg z-20 pointer-events-none"></div>
@@ -139,7 +135,7 @@
         </div>
       </div>
 
-      <!-- Chỉ hiện khi trình duyệt chặn tự động mở camera hoặc lỗi quyền -->
+      <!-- Chỉ hiện khi trình duyệt chặn tự động mở camera -->
       <div
         id="cameraFallback"
         class="hidden absolute inset-0 bg-[#080b12]/90 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-6 text-center gap-4"
@@ -210,7 +206,6 @@
     let mediaStream = null;
     let scanIntervalId = null;
     let scannerActive = false;
-    // Người dùng muốn bật tiếng mặc định (chỉ tạm tắt nếu trình duyệt khóa autoplay trước khi chạm)
     let soundMuted = false;
     let userUnlockedAudio = false;
     let activeCardId = null;
@@ -221,9 +216,10 @@
     let candidateCardId = null;
     let candidateHits = 0;
 
-    const MATCH_THRESHOLD = 0.78;
-    const RELEASE_THRESHOLD = 0.66;
-    const MIN_MARGIN_OVER_SECOND = 0.06;
+    // Cân bằng độ nhạy cho cả card màu lẫn card nét đen trắng nền trắng
+    const MATCH_THRESHOLD = 0.72;
+    const RELEASE_THRESHOLD = 0.60;
+    const MIN_MARGIN_OVER_SECOND = 0.045;
     const REQUIRED_HITS = 2;
     const MAX_MISS_FRAMES = 3;
 
@@ -254,11 +250,14 @@
 
     function applyCardRatioAndPose(ratio = 1.54) {
       const safeRatio = Number(ratio) > 0.2 && Number(ratio) < 4 ? Number(ratio) : 1.54;
-      const baseWidth = Math.min(window.innerWidth * 0.56, 224);
-      let width = baseWidth;
-      let height = baseWidth * safeRatio;
+      const isLandscape = safeRatio < 1;
 
+      const maxWidth = isLandscape ? window.innerWidth * 0.9 : Math.min(window.innerWidth * 0.56, 224);
       const maxHeight = window.innerHeight * 0.56;
+
+      let width = maxWidth;
+      let height = width * safeRatio;
+
       if (height > maxHeight) {
         height = maxHeight;
         width = height / safeRatio;
@@ -280,10 +279,22 @@
       }
     }
 
-    function buildImageDescriptor(source, sx, sy, sw, sh) {
+    function buildImageDescriptor(source, sx, sy, sw, sh, rotateDeg = 0) {
       try {
+        workCtx.save();
         workCtx.clearRect(0, 0, ANALYSIS_SIZE, ANALYSIS_SIZE);
-        workCtx.drawImage(source, sx, sy, sw, sh, 0, 0, ANALYSIS_SIZE, ANALYSIS_SIZE);
+        workCtx.fillStyle = "#ffffff";
+        workCtx.fillRect(0, 0, ANALYSIS_SIZE, ANALYSIS_SIZE);
+
+        if (rotateDeg !== 0) {
+          workCtx.translate(ANALYSIS_SIZE / 2, ANALYSIS_SIZE / 2);
+          workCtx.rotate((rotateDeg * Math.PI) / 180);
+          workCtx.drawImage(source, sx, sy, sw, sh, -ANALYSIS_SIZE / 2, -ANALYSIS_SIZE / 2, ANALYSIS_SIZE, ANALYSIS_SIZE);
+        } else {
+          workCtx.drawImage(source, sx, sy, sw, sh, 0, 0, ANALYSIS_SIZE, ANALYSIS_SIZE);
+        }
+        workCtx.restore();
+
         const { data } = workCtx.getImageData(0, 0, ANALYSIS_SIZE, ANALYSIS_SIZE);
 
         const pixelCount = ANALYSIS_SIZE * ANALYSIS_SIZE;
@@ -304,9 +315,10 @@
         }
 
         const meanLuma = (0.299 * sumR + 0.587 * sumG + 0.114 * sumB) / pixelCount;
-        if (meanLuma < 22 || meanLuma > 245) return null;
+        // Nới ngưỡng sáng tối để tranh nét đen trắng nền trắng không bị loại nhầm
+        if (meanLuma < 18 || meanLuma > 252) return null;
         const stdLuma = Math.sqrt(Math.max(0, sumSqLuma / pixelCount - meanLuma * meanLuma));
-        if (stdLuma < 14) return null;
+        if (stdLuma < 8) return null;
 
         const avgR = (sumR / pixelCount) || 1;
         const avgG = (sumG / pixelCount) || 1;
@@ -321,6 +333,7 @@
         const gridVec = new Float32Array(gridDim * gridDim * 3);
         const histVec = new Float32Array(64);
         const edgeVec = new Float32Array(gridDim * gridDim);
+        const lumaGridVec = new Float32Array(gridDim * gridDim);
         const normLuma = new Float32Array(pixelCount);
 
         for (let y = 0; y < ANALYSIS_SIZE; y++) {
@@ -337,10 +350,12 @@
             const lum = 0.299 * r + 0.587 * g + 0.114 * b;
             normLuma[p] = lum;
 
-            const cellIdx = (gy * gridDim + gx) * 3;
+            const cell = gy * gridDim + gx;
+            const cellIdx = cell * 3;
             gridVec[cellIdx] += r - lum;
             gridVec[cellIdx + 1] += g - lum;
             gridVec[cellIdx + 2] += b - lum;
+            lumaGridVec[cell] += (lum - meanLuma) / stdLuma;
 
             const binR = Math.min(3, r >> 6);
             const binG = Math.min(3, g >> 6);
@@ -360,14 +375,17 @@
           }
         }
 
-        normalizeVector(gridVec, 1.25);
-        normalizeVector(histVec, 0.85);
-        normalizeVector(edgeVec, 1.35);
+        normalizeVector(gridVec, 1.15);
+        normalizeVector(histVec, 0.75);
+        normalizeVector(edgeVec, 1.45);
+        normalizeVector(lumaGridVec, 1.15);
 
-        const combined = new Float32Array(gridVec.length + histVec.length + edgeVec.length);
-        combined.set(gridVec, 0);
-        combined.set(histVec, gridVec.length);
-        combined.set(edgeVec, gridVec.length + histVec.length);
+        const combined = new Float32Array(gridVec.length + histVec.length + edgeVec.length + lumaGridVec.length);
+        let offset = 0;
+        combined.set(gridVec, offset); offset += gridVec.length;
+        combined.set(histVec, offset); offset += histVec.length;
+        combined.set(edgeVec, offset); offset += edgeVec.length;
+        combined.set(lumaGridVec, offset);
 
         normalizeVector(combined, 1.0);
         return combined;
@@ -389,12 +407,15 @@
     async function createCardDescriptorFromUrl(url) {
       const extractMultiVariants = (drawable, w, h) => {
         const variants = [];
-        const baseDesc = buildImageDescriptor(drawable, 0, 0, w, h);
-        if (baseDesc) variants.push(baseDesc);
+        // Sinh mẫu ở cả 0°, 90°, 270° (phòng trường hợp ảnh upload bị xoay ngang như Mẫu 2)
+        for (const deg of [0, 90, 270]) {
+          const baseDesc = buildImageDescriptor(drawable, 0, 0, w, h, deg);
+          if (baseDesc) variants.push(baseDesc);
+        }
 
         const cW = w * 0.88;
         const cH = h * 0.88;
-        const centerDesc = buildImageDescriptor(drawable, (w - cW) / 2, (h - cH) / 2, cW, cH);
+        const centerDesc = buildImageDescriptor(drawable, (w - cW) / 2, (h - cH) / 2, cW, cH, 0);
         if (centerDesc) variants.push(centerDesc);
 
         return variants;
@@ -545,6 +566,12 @@
       };
 
       const activateSlot = () => {
+        // Tự động khớp khung hiển thị theo tỉ lệ thật của video (ngang 16:9 hoặc dọc 9:16)
+        if (nextVideo.videoWidth > 0 && nextVideo.videoHeight > 0) {
+          const naturalVideoRatio = nextVideo.videoHeight / nextVideo.videoWidth;
+          applyCardRatioAndPose(naturalVideoRatio);
+        }
+
         nextVideo.classList.remove("standby");
         nextVideo.classList.add("active");
 
@@ -604,7 +631,7 @@
       const sw = Math.min(vw - sx, cropW);
       const sh = Math.min(vh - sy, cropH);
 
-      return buildImageDescriptor(cameraFeed, sx, sy, sw, sh);
+      return buildImageDescriptor(cameraFeed, sx, sy, sw, sh, 0);
     }
 
     function startScanLoop() {
@@ -680,7 +707,11 @@
 
           missCount = 0;
           if (activeCardObj) {
-            applyCardRatioAndPose(activeCardObj.ratio);
+            const liveRatio =
+              activeVideoEl.videoWidth > 0 && activeVideoEl.videoHeight > 0
+                ? activeVideoEl.videoHeight / activeVideoEl.videoWidth
+                : activeCardObj.ratio;
+            applyCardRatioAndPose(liveRatio);
           }
 
           if (isConfidentMatch && bestCard.id !== activeCardId) {
@@ -811,7 +842,6 @@
       }
     });
 
-    // Mở tiếng ngay khi người dùng chạm vào bất kỳ đâu trên trang (nếu trước đó bị trình duyệt khóa autoplay)
     document.addEventListener("pointerdown", async () => {
       if (!userUnlockedAudio || soundMuted) {
         await unlockAndPlayAudio();
@@ -827,7 +857,13 @@
     window.addEventListener("resize", () => {
       if (activeCardId) {
         const c = cards.find((item) => item.id === activeCardId);
-        if (c) applyCardRatioAndPose(c.ratio);
+        if (c) {
+          const liveRatio =
+            activeVideoEl.videoWidth > 0 && activeVideoEl.videoHeight > 0
+              ? activeVideoEl.videoHeight / activeVideoEl.videoWidth
+              : c.ratio;
+          applyCardRatioAndPose(liveRatio);
+        }
       }
     });
 
