@@ -28,26 +28,60 @@
       background: #000;
     }
 
-    /* Khung quét & hiển thị video tỉ lệ 9:16 đứng yên */
-    .scan-box {
-      aspect-ratio: 9 / 16;
-      height: min(68dvh, 520px);
-      width: auto;
-      max-width: 84vw;
-      box-shadow: 0 0 0 9999px rgba(4, 8, 16, 0.28);
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    .camera-stage {
+      perspective: 950px;
+      transform-style: preserve-3d;
     }
 
-    .scan-box.matched {
-      border-color: #34d399;
-      box-shadow: 0 0 0 9999px rgba(4, 8, 16, 0.2), 0 0 28px rgba(52, 211, 153, 0.4);
+    .card-anchor {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: min(56vw, 220px);
+      height: min(86vw, 338px);
+      transform: translate(-50%, -50%) translate3d(0px, 0px, 0px) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+      transform-origin: center center;
+      transform-style: preserve-3d;
+      will-change: transform, width, height;
+      transition: width 0.14s ease-out, height 0.14s ease-out, border-color 0.18s ease, box-shadow 0.18s ease;
+      box-shadow: none;
     }
 
-    #cardVideo {
+    .card-anchor.matched {
+      border-color: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 14px 28px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.35);
+    }
+
+    .ar-video-deck {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+      border-radius: inherit;
+    }
+
+    .ar-video-slot {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
       object-fit: cover;
       background: #000;
+      opacity: 0;
+      transition: opacity 0.14s ease;
+      pointer-events: none;
+    }
+
+    .ar-video-slot.active {
+      opacity: 1;
+      z-index: 2;
+    }
+
+    .ar-video-slot.standby {
+      opacity: 0;
+      z-index: 1;
     }
   </style>
 </head>
@@ -55,55 +89,57 @@
   <div class="w-full h-screen h-[100dvh] flex flex-col bg-[#080b12] relative overflow-hidden">
 
     <!-- Thanh điều hướng trên cùng -->
-    <header class="h-14 shrink-0 px-4 sm:px-6 flex items-center justify-between bg-[#101725] border-b border-slate-800/90 z-30">
+    <header class="h-16 shrink-0 px-4 sm:px-6 flex items-center justify-between bg-[#101725] border-b border-slate-800/90 z-30">
       <div class="flex items-center gap-2">
-        <span class="text-base sm:text-lg font-extrabold tracking-wider text-white">
+        <span class="text-lg font-extrabold tracking-wider text-white">
           AR <span class="text-cyan-400">CARD</span>
         </span>
         <span id="sourceBadge" class="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-          Live
+          0/0 mẫu
         </span>
       </div>
 
       <button
         id="soundButton"
         type="button"
-        class="px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 transition cursor-pointer"
+        class="px-3.5 py-2 rounded-full text-xs sm:text-sm font-medium bg-slate-800/90 hover:bg-slate-700 text-white border border-slate-700 transition cursor-pointer"
       >
         🔊 Đang bật tiếng
       </button>
     </header>
 
     <!-- Vùng Camera chính -->
-    <main class="relative flex-1 min-h-0 bg-black overflow-hidden">
+    <main class="camera-stage relative flex-1 min-h-0 bg-black overflow-hidden">
+      <!-- Luồng camera trực tiếp full vùng nhìn -->
       <video id="cameraFeed" autoplay playsinline webkit-playsinline muted></video>
 
-      <!-- Khung quét card tỉ lệ 9:16 đứng yên ở giữa màn hình -->
+      <!-- Thanh trạng thái nổi phía trên -->
+      <div
+        id="topStatusPill"
+        class="absolute top-3.5 left-1/2 -translate-x-1/2 z-20 max-w-[92%] px-4 py-2 rounded-full bg-[#0a121e]/85 border border-slate-700/80 text-xs sm:text-sm text-slate-100 truncate backdrop-blur-sm"
+      >
+        Đang mở camera...
+      </div>
+
+      <!-- Khung 3D khớp tỉ lệ card + video phát trực tiếp trên mặt card -->
       <div
         id="scanFrame"
-        class="scan-box absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-2xl border-2 border-cyan-400/85 z-10 overflow-hidden"
+        class="card-anchor rounded-xl border border-cyan-300/75 z-10 overflow-hidden pointer-events-none"
       >
-        <!-- Bốn góc định vị -->
-        <div class="absolute top-0 left-0 w-7 h-7 border-t-4 border-l-4 border-cyan-400 rounded-tl-xl z-20 pointer-events-none"></div>
-        <div class="absolute top-0 right-0 w-7 h-7 border-t-4 border-r-4 border-cyan-400 rounded-tr-xl z-20 pointer-events-none"></div>
-        <div class="absolute bottom-0 left-0 w-7 h-7 border-b-4 border-l-4 border-cyan-400 rounded-bl-xl z-20 pointer-events-none"></div>
-        <div class="absolute bottom-0 right-0 w-7 h-7 border-b-4 border-r-4 border-cyan-400 rounded-br-xl z-20 pointer-events-none"></div>
+        <!-- Bốn góc định vị mảnh gọn sát mép card -->
+        <div class="absolute top-0 left-0 w-4 h-4 border-t-[3px] border-l-[3px] border-cyan-300 rounded-tl-lg z-20 pointer-events-none"></div>
+        <div class="absolute top-0 right-0 w-4 h-4 border-t-[3px] border-r-[3px] border-cyan-300 rounded-tr-lg z-20 pointer-events-none"></div>
+        <div class="absolute bottom-0 left-0 w-4 h-4 border-b-[3px] border-l-[3px] border-cyan-300 rounded-bl-lg z-20 pointer-events-none"></div>
+        <div class="absolute bottom-0 right-0 w-4 h-4 border-b-[3px] border-r-[3px] border-cyan-300 rounded-br-lg z-20 pointer-events-none"></div>
 
-        <!-- Lớp video hiển thị khớp gọn 9:16 trong khung card -->
-        <div id="cardOverlay" class="hidden absolute inset-0 bg-black z-10">
-          <video id="cardVideo" playsinline webkit-playsinline loop></video>
+        <!-- Hai khe video luân phiên để chuyển card không bị khựng -->
+        <div id="cardOverlay" class="hidden ar-video-deck z-10">
+          <video id="videoSlotA" class="ar-video-slot" playsinline webkit-playsinline loop></video>
+          <video id="videoSlotB" class="ar-video-slot" playsinline webkit-playsinline loop></video>
         </div>
       </div>
 
-      <!-- Hướng dẫn sát cạnh dưới -->
-      <p
-        id="scanHint"
-        class="absolute bottom-3 left-4 right-4 text-center text-xs sm:text-sm text-slate-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)] pointer-events-none z-20"
-      >
-        Đưa card vào khung 9:16 để nhận diện
-      </p>
-
-      <!-- Chỉ hiện khi trình duyệt chặn tự động mở camera -->
+      <!-- Chỉ hiện khi trình duyệt chặn tự động mở camera hoặc lỗi quyền -->
       <div
         id="cameraFallback"
         class="hidden absolute inset-0 bg-[#080b12]/90 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-6 text-center gap-4"
@@ -122,12 +158,12 @@
     </main>
 
     <!-- Thanh trạng thái phía dưới -->
-    <footer class="min-h-[64px] shrink-0 px-4 sm:px-6 py-2.5 bg-[#101725] border-t border-slate-800/90 flex flex-col justify-center gap-0.5 z-30">
+    <footer class="min-h-[74px] shrink-0 px-4 sm:px-6 py-3 bg-[#101725] border-t border-slate-800/90 flex flex-col justify-center gap-1 z-30">
       <div id="mainStatus" class="text-sm font-bold text-cyan-400 truncate">
         Đang mở camera...
       </div>
       <div id="subStatus" class="text-xs text-slate-400 truncate">
-        Đưa card vào khung ngắm
+        Đưa đúng card vào giữa khung ngắm
       </div>
     </footer>
   </div>
@@ -152,9 +188,10 @@
 
     const cameraFeed = $("cameraFeed");
     const cardOverlay = $("cardOverlay");
-    const arVideo = $("cardVideo");
+    const videoSlotA = $("videoSlotA");
+    const videoSlotB = $("videoSlotB");
+    const topStatusPill = $("topStatusPill");
     const scanFrame = $("scanFrame");
-    const scanHint = $("scanHint");
     const cameraFallback = $("cameraFallback");
     const cameraFallbackMsg = $("cameraFallbackMsg");
     const retryCameraButton = $("retryCameraButton");
@@ -163,152 +200,181 @@
     const sourceBadge = $("sourceBadge");
     const soundButton = $("soundButton");
 
-    // Tăng độ phân giải mẫu để giữ nét mảnh của tranh lineart/manga
-    const GRID_W = 36;
-    const GRID_H = 64;
+    const ANALYSIS_SIZE = 48;
     const workCanvas = document.createElement("canvas");
-    workCanvas.width = GRID_W;
-    workCanvas.height = GRID_H;
+    workCanvas.width = ANALYSIS_SIZE;
+    workCanvas.height = ANALYSIS_SIZE;
     const workCtx = workCanvas.getContext("2d", { willReadFrequently: true });
 
     let cards = [];
     let mediaStream = null;
     let scanIntervalId = null;
     let scannerActive = false;
+    // Người dùng muốn bật tiếng mặc định (chỉ tạm tắt nếu trình duyệt khóa autoplay trước khi chạm)
     let soundMuted = false;
-    let audioUnlocked = false;
+    let userUnlockedAudio = false;
     let activeCardId = null;
+    let activeVideoEl = videoSlotA;
+    let standbyVideoEl = videoSlotB;
     let playRequestToken = 0;
     let missCount = 0;
     let candidateCardId = null;
     let candidateHits = 0;
 
-    // Ngưỡng nhận diện tối ưu cho cả card màu lẫn card nét đen trắng nền trắng
-    const MATCH_THRESHOLD = 0.64;
-    const RELEASE_THRESHOLD = 0.50;
-    const MIN_MARGIN = 0.035;
+    const MATCH_THRESHOLD = 0.78;
+    const RELEASE_THRESHOLD = 0.66;
+    const MIN_MARGIN_OVER_SECOND = 0.06;
     const REQUIRED_HITS = 2;
-    const MAX_MISS_FRAMES = 4;
+    const MAX_MISS_FRAMES = 3;
+
+    function syncAudioStateToSlots(forceUnmute = false) {
+      if (forceUnmute) {
+        soundMuted = false;
+        userUnlockedAudio = true;
+      }
+      for (const el of [videoSlotA, videoSlotB]) {
+        el.muted = soundMuted;
+        el.defaultMuted = soundMuted;
+        el.volume = 1.0;
+      }
+      soundButton.textContent = soundMuted ? "🔇 Bật tiếng" : "🔊 Đang bật tiếng";
+    }
 
     function updateStatus(primary, secondary = "") {
+      if (activeCardId) {
+        topStatusPill.textContent = activeVideoEl.muted ? "AR LIVE · CHẠM MỞ TIẾNG" : "AR LIVE · 🔊";
+        mainStatus.textContent = "AR LIVE";
+        subStatus.textContent = activeVideoEl.muted ? "Chạm màn hình để bật âm thanh" : "";
+        return;
+      }
+      topStatusPill.textContent = primary;
       mainStatus.textContent = primary;
       subStatus.textContent = secondary;
     }
 
-    function updateSoundButtonUI() {
-      soundButton.textContent = soundMuted ? "🔇 Đang tắt tiếng" : "🔊 Đang bật tiếng";
+    function applyCardRatioAndPose(ratio = 1.54) {
+      const safeRatio = Number(ratio) > 0.2 && Number(ratio) < 4 ? Number(ratio) : 1.54;
+      const baseWidth = Math.min(window.innerWidth * 0.56, 224);
+      let width = baseWidth;
+      let height = baseWidth * safeRatio;
+
+      const maxHeight = window.innerHeight * 0.56;
+      if (height > maxHeight) {
+        height = maxHeight;
+        width = height / safeRatio;
+      }
+
+      scanFrame.style.width = `${Math.round(width)}px`;
+      scanFrame.style.height = `${Math.round(height)}px`;
+      scanFrame.style.transform = "translate(-50%, -50%)";
     }
 
-    function unlockAudioOnGesture() {
-      if (audioUnlocked) return;
-      audioUnlocked = true;
-      soundMuted = false;
-      arVideo.muted = false;
-      arVideo.volume = 1.0;
-      updateSoundButtonUI();
-      if (!cardOverlay.classList.contains("hidden") && arVideo.paused) {
-        arVideo.play().catch(() => {});
-      }
-    }
-
-    ["pointerdown", "touchstart", "click"].forEach((evt) => {
-      document.addEventListener(evt, unlockAudioOnGesture, { passive: true });
-    });
-
-    /**
-     * Trích xuất vector đặc trưng cấu trúc cạnh + tương phản chuẩn hóa theo khung dọc 9:16.
-     * Hoạt động tốt cho cả card ảnh màu lẫn card nét đen trắng (lineart nền trắng).
-     */
-    function buildDescriptorFromCanvas() {
-      const { data } = workCtx.getImageData(0, 0, GRID_W, GRID_H);
-      const totalPixels = GRID_W * GRID_H;
-      const luma = new Float32Array(totalPixels);
-      const chromaRG = new Float32Array(totalPixels);
-      const chromaBY = new Float32Array(totalPixels);
-
-      let sumLuma = 0;
-      for (let i = 0, p = 0; i < data.length; i += 4, p++) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const y = 0.299 * r + 0.587 * g + 0.114 * b;
-        luma[p] = y;
-        chromaRG[p] = r - g;
-        chromaBY[p] = 0.5 * (r + g) - b;
-        sumLuma += y;
-      }
-
-      const meanLuma = sumLuma / totalPixels;
-      if (meanLuma < 15) return null; // Quá tối hoặc bị che tay
-
-      // Chuẩn hóa độ sáng/tương phản (Z-score) để chống chênh lệch ánh sáng đèn phòng
-      let variance = 0;
-      for (let p = 0; p < totalPixels; p++) {
-        const d = luma[p] - meanLuma;
-        variance += d * d;
-      }
-      const stdLuma = Math.sqrt(variance / totalPixels);
-      if (stdLuma < 8) return null; // Vùng tường trắng/bàn trơn không có chi tiết
-
-      for (let p = 0; p < totalPixels; p++) {
-        luma[p] = (luma[p] - meanLuma) / stdLuma;
-      }
-
-      // Kết hợp gradient cạnh (Sobel-like) + bố cục sáng tối + màu sắc
-      const features = [];
-      for (let y = 1; y < GRID_H - 1; y++) {
-        for (let x = 1; x < GRID_W - 1; x++) {
-          const idx = y * GRID_W + x;
-          const gx =
-            (luma[idx - GRID_W + 1] + 2 * luma[idx + 1] + luma[idx + GRID_W + 1]) -
-            (luma[idx - GRID_W - 1] + 2 * luma[idx - 1] + luma[idx + GRID_W - 1]);
-          const gy =
-            (luma[idx + GRID_W - 1] + 2 * luma[idx + GRID_W] + luma[idx + GRID_W + 1]) -
-            (luma[idx - GRID_W - 1] + 2 * luma[idx - GRID_W] + luma[idx - GRID_W + 1]);
-
-          features.push(
-            gx * 0.55,
-            gy * 0.55,
-            luma[idx] * 0.45,
-            (chromaRG[idx] / 255) * 0.35,
-            (chromaBY[idx] / 255) * 0.35
-          );
-        }
-      }
-
-      const vec = new Float32Array(features.length);
+    function normalizeVector(arr, weight = 1.0) {
       let norm = 0;
-      for (let i = 0; i < features.length; i++) {
-        vec[i] = features[i];
-        norm += vec[i] * vec[i];
+      for (let i = 0; i < arr.length; i++) {
+        norm += arr[i] * arr[i];
       }
       norm = Math.sqrt(norm) || 1;
-      for (let i = 0; i < vec.length; i++) {
-        vec[i] /= norm;
+      for (let i = 0; i < arr.length; i++) {
+        arr[i] = (arr[i] / norm) * weight;
       }
-      return vec;
     }
 
-    function buildSourceDescriptor(source, sx, sy, sw, sh, rotateDeg = 0) {
-      workCtx.save();
-      workCtx.clearRect(0, 0, GRID_W, GRID_H);
-      workCtx.fillStyle = "#ffffff";
-      workCtx.fillRect(0, 0, GRID_W, GRID_H);
+    function buildImageDescriptor(source, sx, sy, sw, sh) {
+      try {
+        workCtx.clearRect(0, 0, ANALYSIS_SIZE, ANALYSIS_SIZE);
+        workCtx.drawImage(source, sx, sy, sw, sh, 0, 0, ANALYSIS_SIZE, ANALYSIS_SIZE);
+        const { data } = workCtx.getImageData(0, 0, ANALYSIS_SIZE, ANALYSIS_SIZE);
 
-      if (rotateDeg !== 0) {
-        workCtx.translate(GRID_W / 2, GRID_H / 2);
-        workCtx.rotate((rotateDeg * Math.PI) / 180);
-        if (rotateDeg === 90 || rotateDeg === 270) {
-          workCtx.drawImage(source, sx, sy, sw, sh, -GRID_H / 2, -GRID_W / 2, GRID_H, GRID_W);
-        } else {
-          workCtx.drawImage(source, sx, sy, sw, sh, -GRID_W / 2, -GRID_H / 2, GRID_W, GRID_H);
+        const pixelCount = ANALYSIS_SIZE * ANALYSIS_SIZE;
+        let sumR = 0;
+        let sumG = 0;
+        let sumB = 0;
+        let sumSqLuma = 0;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          sumR += r;
+          sumG += g;
+          sumB += b;
+          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+          sumSqLuma += lum * lum;
         }
-      } else {
-        workCtx.drawImage(source, sx, sy, sw, sh, 0, 0, GRID_W, GRID_H);
-      }
 
-      workCtx.restore();
-      return buildDescriptorFromCanvas();
+        const meanLuma = (0.299 * sumR + 0.587 * sumG + 0.114 * sumB) / pixelCount;
+        if (meanLuma < 22 || meanLuma > 245) return null;
+        const stdLuma = Math.sqrt(Math.max(0, sumSqLuma / pixelCount - meanLuma * meanLuma));
+        if (stdLuma < 14) return null;
+
+        const avgR = (sumR / pixelCount) || 1;
+        const avgG = (sumG / pixelCount) || 1;
+        const avgB = (sumB / pixelCount) || 1;
+        const avgGray = (avgR + avgG + avgB) / 3;
+        const gainR = avgGray / avgR;
+        const gainG = avgGray / avgG;
+        const gainB = avgGray / avgB;
+
+        const gridDim = 6;
+        const cellSize = ANALYSIS_SIZE / gridDim;
+        const gridVec = new Float32Array(gridDim * gridDim * 3);
+        const histVec = new Float32Array(64);
+        const edgeVec = new Float32Array(gridDim * gridDim);
+        const normLuma = new Float32Array(pixelCount);
+
+        for (let y = 0; y < ANALYSIS_SIZE; y++) {
+          const gy = Math.min(gridDim - 1, Math.floor(y / cellSize));
+          for (let x = 0; x < ANALYSIS_SIZE; x++) {
+            const gx = Math.min(gridDim - 1, Math.floor(x / cellSize));
+            const p = y * ANALYSIS_SIZE + x;
+            const idx = p * 4;
+
+            const r = Math.min(255, data[idx] * gainR);
+            const g = Math.min(255, data[idx + 1] * gainG);
+            const b = Math.min(255, data[idx + 2] * gainB);
+
+            const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+            normLuma[p] = lum;
+
+            const cellIdx = (gy * gridDim + gx) * 3;
+            gridVec[cellIdx] += r - lum;
+            gridVec[cellIdx + 1] += g - lum;
+            gridVec[cellIdx + 2] += b - lum;
+
+            const binR = Math.min(3, r >> 6);
+            const binG = Math.min(3, g >> 6);
+            const binB = Math.min(3, b >> 6);
+            histVec[(binR << 4) | (binG << 2) | binB] += 1;
+          }
+        }
+
+        for (let y = 1; y < ANALYSIS_SIZE - 1; y++) {
+          const gy = Math.min(gridDim - 1, Math.floor(y / cellSize));
+          for (let x = 1; x < ANALYSIS_SIZE - 1; x++) {
+            const gx = Math.min(gridDim - 1, Math.floor(x / cellSize));
+            const p = y * ANALYSIS_SIZE + x;
+            const dx = Math.abs(normLuma[p + 1] - normLuma[p - 1]);
+            const dy = Math.abs(normLuma[p + ANALYSIS_SIZE] - normLuma[p - ANALYSIS_SIZE]);
+            edgeVec[gy * gridDim + gx] += dx + dy;
+          }
+        }
+
+        normalizeVector(gridVec, 1.25);
+        normalizeVector(histVec, 0.85);
+        normalizeVector(edgeVec, 1.35);
+
+        const combined = new Float32Array(gridVec.length + histVec.length + edgeVec.length);
+        combined.set(gridVec, 0);
+        combined.set(histVec, gridVec.length);
+        combined.set(edgeVec, gridVec.length + histVec.length);
+
+        normalizeVector(combined, 1.0);
+        return combined;
+      } catch (err) {
+        console.warn("Lỗi đọc dữ liệu ảnh:", err);
+        return null;
+      }
     }
 
     function computeSimilarity(vecA, vecB) {
@@ -320,32 +386,56 @@
       return dot;
     }
 
-    /**
-     * Tạo bộ mẫu đa hướng (0°, 90°, 180°, 270°) để dù ảnh gốc bị xoay ngang như Mẫu 2
-     * hay cầm ngược đầu card thì vẫn nhận diện chính xác.
-     */
-    function createCardDescriptorsFromUrl(url) {
+    async function createCardDescriptorFromUrl(url) {
+      const extractMultiVariants = (drawable, w, h) => {
+        const variants = [];
+        const baseDesc = buildImageDescriptor(drawable, 0, 0, w, h);
+        if (baseDesc) variants.push(baseDesc);
+
+        const cW = w * 0.88;
+        const cH = h * 0.88;
+        const centerDesc = buildImageDescriptor(drawable, (w - cW) / 2, (h - cH) / 2, cW, cH);
+        if (centerDesc) variants.push(centerDesc);
+
+        return variants;
+      };
+
+      try {
+        const res = await fetch(url, { mode: "cors" });
+        if (res.ok) {
+          const blob = await res.blob();
+          const bitmap = await createImageBitmap(blob);
+          const variants = extractMultiVariants(bitmap, bitmap.width, bitmap.height);
+          bitmap.close();
+          if (variants.length) return variants;
+        }
+      } catch {}
+
       return new Promise((resolve) => {
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.onload = () => {
-          try {
-            const w = img.naturalWidth;
-            const h = img.naturalHeight;
-            const descriptors = [];
-            for (const deg of [0, 90, 180, 270]) {
-              const desc = buildSourceDescriptor(img, 0, 0, w, h, deg);
-              if (desc) descriptors.push(desc);
-            }
-            resolve(descriptors);
-          } catch (err) {
-            console.warn("Không trích xuất được mẫu ảnh:", url, err);
-            resolve([]);
-          }
+          const variants = extractMultiVariants(img, img.naturalWidth, img.naturalHeight);
+          resolve(variants.length ? variants : null);
         };
-        img.onerror = () => resolve([]);
+        img.onerror = () => resolve(null);
         img.src = url;
       });
+    }
+
+    function scoreAgainstCardVariants(frameDesc, card) {
+      if (!frameDesc || !card?.descriptors?.length) return -1;
+      let best = -1;
+      for (const desc of card.descriptors) {
+        const s = computeSimilarity(frameDesc, desc);
+        if (s > best) best = s;
+      }
+      return best;
+    }
+
+    function updateReadyBadge() {
+      const readyCount = cards.filter((c) => Boolean(c.descriptors?.length)).length;
+      sourceBadge.textContent = `${readyCount}/${cards.length} mẫu`;
     }
 
     async function fetchCardMetadataOnly() {
@@ -358,31 +448,34 @@
           const name = (data.name || "Card AR").trim();
           const imageUrl = typeof data.imageUrl === "string" ? data.imageUrl.trim() : "";
           const videoUrl = typeof data.videoUrl === "string" ? data.videoUrl.trim() : "";
+          const ratio = Number(data.ratio) > 0 ? Number(data.ratio) : 1.54;
 
-          if (!videoUrl.startsWith("https://")) return;
+          if (!videoUrl.startsWith("https://") || !imageUrl.startsWith("https://")) return;
 
           list.push({
             id: docSnap.id,
             name,
             imageUrl,
             videoUrl,
-            descriptors: [],
-            loadingDescriptor: false
+            ratio,
+            descriptors: null,
+            loadingDescriptor: false,
+            failed: false
           });
         });
 
         cards = list;
-        sourceBadge.textContent = `${cards.length} card`;
+        updateReadyBadge();
       } catch (err) {
         console.warn("Lỗi tải danh sách Firestore:", err);
         cards = [];
-        sourceBadge.textContent = "0 card";
+        sourceBadge.textContent = "0/0 mẫu";
       }
     }
 
     async function warmDescriptorsBatch(batchSize = 4) {
       const pending = cards.filter(
-        (c) => c.descriptors.length === 0 && !c.loadingDescriptor && c.imageUrl.startsWith("https://")
+        (c) => !c.descriptors && !c.loadingDescriptor && !c.failed && c.imageUrl.startsWith("https://")
       );
       if (!pending.length) return;
 
@@ -390,27 +483,37 @@
       await Promise.all(
         slice.map(async (card) => {
           card.loadingDescriptor = true;
-          card.descriptors = await createCardDescriptorsFromUrl(card.imageUrl);
+          const variants = await createCardDescriptorFromUrl(card.imageUrl);
+          card.descriptors = variants;
+          card.failed = !variants;
           card.loadingDescriptor = false;
         })
       );
+      updateReadyBadge();
     }
 
-    function stopAndHideCardVideo(statusMsg = "Đang tìm card...", detailMsg = "Đưa card vào khung 9:16 để nhận diện") {
+    function clearVideoSlot(el) {
+      el.pause();
+      el.onerror = null;
+      el.removeAttribute("src");
+      el.load();
+      el.classList.remove("active");
+      el.classList.add("standby");
+    }
+
+    function stopAndHideCardVideo(statusMsg = "Đang quét...", detailMsg = "") {
       playRequestToken++;
       activeCardId = null;
       candidateCardId = null;
       candidateHits = 0;
       missCount = 0;
 
-      arVideo.pause();
-      arVideo.onerror = null;
-      arVideo.removeAttribute("src");
-      arVideo.load();
+      clearVideoSlot(videoSlotA);
+      clearVideoSlot(videoSlotB);
 
       cardOverlay.classList.add("hidden");
       scanFrame.classList.remove("matched");
-      scanHint.textContent = "Đưa card vào khung 9:16 để nhận diện";
+      applyCardRatioAndPose(1.54);
       updateStatus(statusMsg, detailMsg);
     }
 
@@ -419,83 +522,89 @@
       activeCardId = card.id;
       missCount = 0;
 
+      applyCardRatioAndPose(card.ratio);
       scanFrame.classList.add("matched");
-      scanHint.textContent = "";
-
-      arVideo.pause();
-      arVideo.removeAttribute("src");
-      arVideo.load();
-
-      arVideo.src = card.videoUrl;
-      arVideo.muted = soundMuted;
-      arVideo.volume = 1.0;
-      arVideo.loop = true;
-      arVideo.playsInline = true;
-
       cardOverlay.classList.remove("hidden");
 
-      arVideo.onerror = () => {
+      const nextVideo = standbyVideoEl;
+      const prevVideo = activeVideoEl;
+
+      nextVideo.pause();
+      nextVideo.onerror = null;
+      nextVideo.src = card.videoUrl;
+      nextVideo.muted = soundMuted;
+      nextVideo.defaultMuted = soundMuted;
+      nextVideo.volume = 1.0;
+      nextVideo.loop = true;
+      nextVideo.playsInline = true;
+      nextVideo.load();
+
+      nextVideo.onerror = () => {
         if (token !== playRequestToken) return;
-        updateStatus("Lỗi tải video của " + card.name, "Kiểm tra lại videoUrl");
+        stopAndHideCardVideo("Đang quét...", "");
+      };
+
+      const activateSlot = () => {
+        nextVideo.classList.remove("standby");
+        nextVideo.classList.add("active");
+
+        prevVideo.classList.remove("active");
+        prevVideo.classList.add("standby");
+        prevVideo.pause();
+
+        activeVideoEl = nextVideo;
+        standbyVideoEl = prevVideo;
       };
 
       try {
-        await arVideo.play();
+        await nextVideo.play();
         if (token !== playRequestToken || activeCardId !== card.id) {
-          arVideo.pause();
+          nextVideo.pause();
           return;
         }
-        arVideo.muted = soundMuted;
-        arVideo.volume = 1.0;
-        updateSoundButtonUI();
-        updateStatus(`Đang phát: ${card.name}`, "Lấy card ra khỏi khung để dừng");
+        if (!soundMuted) {
+          nextVideo.muted = false;
+          nextVideo.volume = 1.0;
+        }
+        activateSlot();
+        updateStatus("AR LIVE", "");
       } catch (err) {
         if (token !== playRequestToken) return;
-        console.warn("Trình duyệt chặn tự phát có tiếng:", err);
-        arVideo.muted = true;
-        soundMuted = true;
-        updateSoundButtonUI();
+        console.warn("Trình duyệt chặn tự phát có tiếng, đang phát tạm tắt tiếng chờ chạm màn hình:", err);
+        nextVideo.muted = true;
         try {
-          await arVideo.play();
-          updateStatus(`Đang phát: ${card.name}`, "Chạm màn hình để mở tiếng");
+          await nextVideo.play();
+          activateSlot();
+          updateStatus("AR LIVE", "Chạm màn hình để bật âm thanh");
         } catch {
-          updateStatus(`Đang phát: ${card.name}`, "Chạm màn hình để phát video");
+          stopAndHideCardVideo("Đang quét...", "");
         }
       }
     }
 
-    /**
-     * Cắt đúng vùng khung chữ nhật dọc 9:16 ở tâm camera để khớp toàn bộ chiều cao tấm card.
-     */
-    function captureCenterCardDescriptor() {
+    function captureCenterCardDescriptor(ratio = 1.54, scaleFactor = 1.0) {
       if (!scannerActive || cameraFeed.readyState < 2 || !cameraFeed.videoWidth || !cameraFeed.videoHeight) {
         return null;
       }
 
       const vw = cameraFeed.videoWidth;
       const vh = cameraFeed.videoHeight;
-      const targetAspect = 9 / 16;
+      const safeRatio = ratio > 0.2 && ratio < 4 ? ratio : 1.54;
 
-      let cropH = vh * 0.68;
-      let cropW = cropH * targetAspect;
-      if (cropW > vw * 0.84) {
-        cropW = vw * 0.84;
-        cropH = cropW / targetAspect;
+      let cropW = Math.min(vw, vh) * 0.56 * scaleFactor;
+      let cropH = cropW * safeRatio;
+      const maxH = vh * 0.72;
+      if (cropH > maxH) {
+        cropH = maxH;
+        cropW = cropH / safeRatio;
       }
 
-      const sx = (vw - cropW) / 2;
-      const sy = (vh - cropH) / 2;
+      const sx = Math.max(0, (vw - cropW) / 2);
+      const sy = Math.max(0, (vh - cropH) / 2);
+      const sw = Math.min(vw - sx, cropW);
+      const sh = Math.min(vh - sy, cropH);
 
-      return buildSourceDescriptor(cameraFeed, sx, sy, cropW, cropH, 0);
-    }
-
-    function getBestCardScore(frameDesc, card) {
-      let best = -1;
-      for (const desc of card.descriptors) {
-        const s = computeSimilarity(frameDesc, desc);
-        if (s > best) best = s;
-      }
-      return best;
+      return buildImageDescriptor(cameraFeed, sx, sy, sw, sh);
     }
 
     function startScanLoop() {
@@ -506,49 +615,75 @@
         if (!scannerActive) return;
 
         tick++;
-        if (tick % 4 === 0) {
-          warmDescriptorsBatch(4);
+        if (tick % 2 === 0) {
+          warmDescriptorsBatch(6);
         }
 
-        const frameDesc = captureCenterCardDescriptor();
+        const activeCardObj = activeCardId ? cards.find((c) => c.id === activeCardId) : null;
+        const probeRatio = activeCardObj ? activeCardObj.ratio : 1.54;
 
-        if (!frameDesc) {
+        const frameDesc = captureCenterCardDescriptor(probeRatio, 1.0);
+        const wideDesc = captureCenterCardDescriptor(probeRatio, 1.12);
+
+        if (!frameDesc && !wideDesc) {
           if (activeCardId) {
             missCount++;
             if (missCount >= MAX_MISS_FRAMES) {
-              stopAndHideCardVideo();
+              stopAndHideCardVideo("Đang quét...", "");
             }
           }
           return;
         }
 
+        const loadedCards = cards.filter((c) => Boolean(c.descriptors?.length));
+        if (!loadedCards.length) {
+          if (activeCardId) stopAndHideCardVideo("Đang quét...", "");
+          return;
+        }
+
         let bestCard = null;
         let bestScore = -1;
-        let secondBestScore = -1;
+        let secondScore = -1;
         let currentActiveScore = -1;
 
-        for (const card of cards) {
-          if (!card.descriptors.length) continue;
-          const score = getBestCardScore(frameDesc, card);
+        for (const card of loadedCards) {
+          const s1 = frameDesc ? scoreAgainstCardVariants(frameDesc, card) : -1;
+          const s2 = wideDesc ? scoreAgainstCardVariants(wideDesc, card) : -1;
+          const score = Math.max(s1, s2);
 
           if (card.id === activeCardId) {
             currentActiveScore = score;
           }
-
           if (score > bestScore) {
-            secondBestScore = bestScore;
+            secondScore = bestScore;
             bestScore = score;
             bestCard = card;
-          } else if (score > secondBestScore) {
-            secondBestScore = score;
+          } else if (score > secondScore) {
+            secondScore = score;
           }
         }
 
-        const margin = secondBestScore > 0 ? bestScore - secondBestScore : 1;
+        const margin = loadedCards.length > 1 ? bestScore - secondScore : 1;
+        const isConfidentMatch =
+          Boolean(bestCard) &&
+          bestScore >= MATCH_THRESHOLD &&
+          margin >= MIN_MARGIN_OVER_SECOND;
 
-        // 1. Đang phát video của 1 card
         if (activeCardId) {
-          if (bestCard && bestCard.id !== activeCardId && bestScore >= MATCH_THRESHOLD && margin >= MIN_MARGIN) {
+          if (currentActiveScore < RELEASE_THRESHOLD && !isConfidentMatch) {
+            missCount++;
+            if (missCount >= MAX_MISS_FRAMES) {
+              stopAndHideCardVideo("Đang quét...", "");
+            }
+            return;
+          }
+
+          missCount = 0;
+          if (activeCardObj) {
+            applyCardRatioAndPose(activeCardObj.ratio);
+          }
+
+          if (isConfidentMatch && bestCard.id !== activeCardId) {
             if (candidateCardId === bestCard.id) {
               candidateHits++;
             } else {
@@ -561,22 +696,14 @@
               candidateHits = 0;
               showVideoInsideCard(bestCard);
             }
-            return;
-          }
-
-          if (currentActiveScore < RELEASE_THRESHOLD) {
-            missCount++;
-            if (missCount >= MAX_MISS_FRAMES) {
-              stopAndHideCardVideo("Đã ngưng phát", "Đưa card tiếp theo vào khung 9:16");
-            }
           } else {
-            missCount = 0;
+            candidateCardId = null;
+            candidateHits = 0;
           }
           return;
         }
 
-        // 2. Chưa phát: xác nhận khớp liên tiếp để mở video
-        if (bestCard && bestScore >= MATCH_THRESHOLD && margin >= MIN_MARGIN) {
+        if (isConfidentMatch) {
           if (candidateCardId === bestCard.id) {
             candidateHits++;
           } else {
@@ -593,7 +720,7 @@
           candidateCardId = null;
           candidateHits = 0;
         }
-      }, 220);
+      }, 150);
     }
 
     async function openCameraStream() {
@@ -636,15 +763,14 @@
 
       try {
         cameraFallback.classList.add("hidden");
-        updateStatus("Đang mở camera...", "Đưa card vào khung 9:16");
+        updateStatus("Đang mở camera...", "Đưa đúng card vào giữa khung ngắm");
         await openCameraStream();
 
         scannerActive = true;
-        updateSoundButtonUI();
-        stopAndHideCardVideo("Đang quét card...", "Đưa card vào khung 9:16 để nhận diện");
+        stopAndHideCardVideo("Đang quét card...", "Đưa đúng card vào giữa khung ngắm");
 
         await fetchCardMetadataOnly();
-        await warmDescriptorsBatch(6);
+        await warmDescriptorsBatch(4);
         startScanLoop();
       } catch (err) {
         console.error("Không mở được camera:", err);
@@ -658,28 +784,52 @@
       }
     }
 
+    async function unlockAndPlayAudio() {
+      syncAudioStateToSlots(true);
+      if (!cardOverlay.classList.contains("hidden") && activeVideoEl.src) {
+        try {
+          activeVideoEl.muted = false;
+          activeVideoEl.volume = 1.0;
+          await activeVideoEl.play();
+        } catch (err) {
+          console.warn("Không thể phát có tiếng:", err);
+        }
+      }
+      if (activeCardId) {
+        updateStatus("AR LIVE", "");
+      }
+    }
+
     soundButton.addEventListener("click", async (e) => {
       e.stopPropagation();
-      audioUnlocked = true;
-      soundMuted = !soundMuted;
-      arVideo.muted = soundMuted;
-      arVideo.volume = 1.0;
-      updateSoundButtonUI();
-
-      if (!soundMuted && !cardOverlay.classList.contains("hidden") && arVideo.paused) {
-        try {
-          await arVideo.play();
-        } catch (err) {
-          console.warn(err);
-        }
+      if (!userUnlockedAudio || soundMuted) {
+        await unlockAndPlayAudio();
+      } else {
+        soundMuted = true;
+        syncAudioStateToSlots(false);
+        if (activeCardId) updateStatus("AR LIVE", "");
       }
     });
 
-    cardOverlay.addEventListener("click", () => {
-      unlockAudioOnGesture();
-    });
+    // Mở tiếng ngay khi người dùng chạm vào bất kỳ đâu trên trang (nếu trước đó bị trình duyệt khóa autoplay)
+    document.addEventListener("pointerdown", async () => {
+      if (!userUnlockedAudio || soundMuted) {
+        await unlockAndPlayAudio();
+      } else if (!cardOverlay.classList.contains("hidden") && activeVideoEl.paused && activeVideoEl.src) {
+        try {
+          await activeVideoEl.play();
+        } catch {}
+      }
+    }, { passive: true });
 
     retryCameraButton.addEventListener("click", startScanner);
+
+    window.addEventListener("resize", () => {
+      if (activeCardId) {
+        const c = cards.find((item) => item.id === activeCardId);
+        if (c) applyCardRatioAndPose(c.ratio);
+      }
+    });
 
     window.addEventListener("beforeunload", () => {
       scannerActive = false;
@@ -689,6 +839,7 @@
       }
     });
 
+    syncAudioStateToSlots(false);
     startScanner();
   </script>
 </body>
